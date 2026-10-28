@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>연령대별 진료비</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f5f5f3;
+    --surface-1: #fcfcfb;
+    --border: #e3e2de;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border: #2e2e2c;
+      --grid: #2a2a28;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e88;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border: #2e2e2c;
+    --grid: #2a2a28;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e88;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .lead { margin: 0 0 20px; color: var(--text-secondary); }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .chart { position: relative; height: 380px; }
+  .note { margin-top: 12px; color: var(--text-secondary); font-size: 0.9rem; }
+  details { margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  footer { margin-top: 20px; color: var(--text-muted); font-size: 0.8rem; }
+  @media (max-width: 600px) { .chart { height: 300px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>나이가 들수록 진료비는 얼마나 늘어날까</h1>
+  <p class="lead">연령대·성별 환자 1명당 2년(2024~2025) 진료비 합계 평균. 연령은 2025년 기준입니다.</p>
+
+  <div class="card">
+    <div class="chart"><canvas id="c-age" aria-label="연령대별 성별 환자 1명당 진료비 막대 그래프" role="img"></canvas></div>
+    <p class="note" id="note"></p>
+    <details><summary>표로 보기</summary><table id="t-age"></table></details>
+  </div>
+
+  <footer>데이터: kr_claims claim + patient (실습용 가상 데이터). 집계: scripts/build_data.py</footer>
+</main>
+
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const A = window.DASHBOARD_DATA.age_cost;
+  const fmt = n => n.toLocaleString("ko-KR");
+  const man = n => Math.round(n / 10000).toLocaleString("ko-KR") + "만 원";
+
+  const peakM = A.male.reduce((b, x, i) => x.avg_amt > A.male[b].avg_amt ? i : b, 0);
+  const peakF = A.female.reduce((b, x, i) => x.avg_amt > A.female[b].avg_amt ? i : b, 0);
+  document.getElementById("note").textContent =
+    "40대부터 진료비가 크게 늘어납니다. 0~19세 대비 남성 " + A.bands[peakM] + "세는 약 " +
+    (A.male[peakM].avg_amt / A.male[0].avg_amt).toFixed(1) + "배(" + man(A.male[peakM].avg_amt) + "), 여성 " +
+    A.bands[peakF] + "세는 약 " + (A.female[peakF].avg_amt / A.female[0].avg_amt).toFixed(1) + "배(" + man(A.female[peakF].avg_amt) +
+    ")입니다. 남성은 70세 이상에서 오히려 줄어 여성보다 낮아집니다.";
+
+  document.getElementById("t-age").innerHTML =
+    "<tr><th>연령대</th><th>남성 환자</th><th>남성 1명당(원)</th><th>여성 환자</th><th>여성 1명당(원)</th></tr>" +
+    A.bands.map((b, i) => "<tr><td>" + b + "</td><td>" + fmt(A.male[i].patients) + "</td><td>" + fmt(A.male[i].avg_amt) +
+      "</td><td>" + fmt(A.female[i].patients) + "</td><td>" + fmt(A.female[i].avg_amt) + "</td></tr>").join("");
+
+  let chart;
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function render() {
+    if (chart) chart.destroy();
+    const grid = css("--grid"), surface = css("--surface-1"), surface0 = css("--surface-0");
+    Chart.defaults.color = css("--text-secondary");
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    const bar = { borderRadius: 4, borderSkipped: "start", borderWidth: 0, categoryPercentage: 0.7, barPercentage: 0.92 };
+    chart = new Chart(document.getElementById("c-age"), {
+      type: "bar",
+      data: {
+        labels: A.bands.map(b => b + "세"),
+        datasets: [
+          { label: "남성", data: A.male.map(x => x.avg_amt), backgroundColor: css("--series-1"), ...bar },
+          { label: "여성", data: A.female.map(x => x.avg_amt), backgroundColor: css("--series-2"), ...bar }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "top", align: "start", labels: { boxWidth: 12, boxHeight: 12 } },
+          tooltip: {
+            backgroundColor: css("--text-primary"), titleColor: surface, bodyColor: surface, padding: 10,
+            callbacks: { label: i => {
+              const x = (i.datasetIndex === 0 ? A.male : A.female)[i.dataIndex];
+              return i.dataset.label + ": " + fmt(x.avg_amt) + "원 (환자 " + fmt(x.patients) + "명)";
+            } }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true, grid: { color: grid }, ticks: { callback: v => v ? (v / 10000) + "만" : "0" } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+  render();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+</script>
+</body>
+</html>

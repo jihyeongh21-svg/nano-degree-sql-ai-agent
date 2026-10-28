@@ -170,6 +170,6 @@ ORDER BY stage_group;
 - **청구 데이터와 임상 데이터는 답할 수 있는 질문이 다르다.** 청구 자료는 돈과 방문을, 임상 자료는 진단·치료·사망을 기록합니다.
 
 ## 8. GitHub
-- 저장소: https://github.com/jihyeongh21-svg/nano-dree-sql
+- 저장소: https://github.com/jihyeongh21-svg/nano-degree-sql-ai-agent
 - 실습·과제 SQL: [`sql/`](sql/)
 - 웹 대시보드 정리: [`dashboard/`](dashboard/README.md)

@@ -4,6 +4,8 @@
 오즈코딩스쿨 AI 헬스케어 3기 SQL 특강(2026-10-06 ~ 10-08, 3일)에서 진행한 실습과 과제를 정리한 저장소입니다.
 헬스케어 현장에서 실제로 받는 질문("이번 달 외래 중 금액이 큰 청구는?", "폐암 환자의 1년 사망률이 진단 연도에 따라 달라졌나?")에 SQL로 답하는 연습을 했습니다.
 
+이어진 웹 대시보드 특강(2026-10-20 ~ 10-22) 정리는 [`dashboard/`](dashboard/README.md)에 있습니다.
+
 | 데이터베이스 | 내용 | 주요 테이블 |
 | --- | --- | --- |
 | `kr_claims` | 건강보험 청구(명세서) 자료를 본뜬 실습용 데이터. 2024-01-01 ~ 2025-12-31. 명세서·수진자·요양기관은 가상 기록이고, 상병마스터·코드표·병원 목록은 심평원 공개 자료 | `claim`(38,375건), `patient`, `institution`, `sick_master`, `code_table`, `hospital_open` |
@@ -18,6 +20,8 @@ sql/
 ├── assignment_1.sql   # 과제 1. 2025년 7월 외래 명세서 읽기
 ├── assignment_2.sql   # 과제 2. 상병별 집계와 당뇨병 환자의 방문 간격
 └── assignment_3.sql   # 과제 3. 병기 그룹별 3년 안 사망률
+dashboard/
+└── README.md          # 웹 대시보드 특강 실습·과제 정리
 ```
 
 ## 2. 사용 기술
@@ -168,3 +172,4 @@ ORDER BY stage_group;
 ## 8. GitHub
 - 저장소: https://github.com/jihyeongh21-svg/nano-dree-sql
 - 실습·과제 SQL: [`sql/`](sql/)
+- 웹 대시보드 정리: [`dashboard/`](dashboard/README.md)

@@ -29,6 +29,7 @@
 - **기타 기술**
   - Python 표준 라이브러리 (CSV 다운로드, 이동평균·RSI·낙폭 계산)
   - HTML + Chart.js 4.4.1
+  - Supabase + supabase-js 2.45.4 (데이터를 테이블에서 읽기, RLS 읽기 정책)
   - Windows Edge headless (화면 스크린샷 검증)
   - GitHub Pages (배포)
 
@@ -44,6 +45,7 @@
    │                 invest/scripts/build_invest.py → invest_data.js  (2~4단계)
    ├─ 화면 생성 ───▶ invest/sp500.html (1단계 그래프) → invest/index.html (완성 대시보드)
    ├─ 검증 ────────▶ 요약 지표와 차트 값 대조, Edge headless 데스크톱·모바일 스크린샷
+   ├─ DB 연결 ─────▶ market_daily.csv → Supabase 테이블 → 화면에서 supabase-js 로 읽어 계산
    └─ 배포 ────────▶ git push → GitHub Pages 공개 URL
 ```
 

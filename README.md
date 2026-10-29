@@ -6,9 +6,9 @@
 | --- | --- |
 | SQL | [sql/README.md](sql/README.md), [`sql/`](sql/) |
 | AI Agent (웹 대시보드) | [dashboard/README.md](dashboard/README.md), [회고 노트](dashboard/RETROSPECTIVE.md), [재현용 프롬프트](dashboard/PROMPTS.md) |
-| 과제 1·2 대시보드 (주식투자 보조) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/invest/ |
+| 과제 1·2 대시보드 (주식투자 보조, Supabase 연결) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/invest/ |
 | 빌드 1단계 그래프 (S&P 500) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/invest/sp500.html |
-| 수업 실습 (청구 대시보드) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/claims/ |
+| 수업 실습 (청구 대시보드, Supabase 연결) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/claims/ |
 | 수업 실습 (연령대별 진료비) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/claims/age-cost.html |
 
 ### 폴더 구조
@@ -24,12 +24,14 @@ dashboard/                 # WEEK 3~4. 웹 대시보드 특강
 ├── RETROSPECTIVE.md       # 과제 3 회고 노트
 ├── PROMPTS.md             # 재현용 프롬프트
 ├── invest/                # 과제 1·2: 주식투자 보조 대시보드
-│   ├── index.html         # 완성 대시보드
+│   ├── index.html         # 완성 대시보드 (Supabase market_daily 에서 읽음)
 │   ├── sp500.html         # 빌드 1단계 그래프
+│   ├── supabase/          # Supabase 에 올릴 market_daily.csv
 │   └── scripts/           # FRED 다운로드·집계
 └── claims/                # 수업 실습: 건강보험 청구 데이터
-    ├── index.html         # 청구 대시보드
+    ├── index.html         # 청구 대시보드 (Supabase claim 에서 읽음)
     ├── age-cost.html      # 연령대별 진료비
+    ├── lookups.js         # 상병명·종별 참조표
     └── scripts/           # 청구 데이터 집계
 ```
 
@@ -41,7 +43,7 @@ dashboard/                 # WEEK 3~4. 웹 대시보드 특강
 | WEEK 1 | 10/6 ~ 10/8 | SQL 특강 3일 (청구 데이터 `kr_claims`, 폐암 데이터 `kr_lung_cancer`) | 실습 1~5, 과제 1~3 |
 | WEEK 2 | 10/9 ~ 10/19 | 실습 복습, 과제 숫자 재검증, SQL README 작성 | [sql/README.md](sql/README.md) |
 | WEEK 3 | 10/20 ~ 10/22 | 웹 대시보드 특강 3일 (Claude Code, 시각화 기본기, Supabase, 클로드 스킬) | 수업 실습 |
-| WEEK 4 | 10/23 ~ 10/30 | 주식투자 보조 대시보드(과제 1·2)와 회고 노트(과제 3) 완성, GitHub Pages 배포, 최종 정리 | [`dashboard/`](dashboard/), 이 문서 |
+| WEEK 4 | 10/23 ~ 10/30 | 주식투자 보조 대시보드(과제 1·2)와 회고 노트(과제 3) 완성, GitHub Pages 배포, 두 대시보드를 Supabase 에 연결, 최종 정리 | [`dashboard/`](dashboard/), 이 문서 |
 
 ## 2. 무엇을 배웠나
 
@@ -72,7 +74,8 @@ dashboard/                 # WEEK 3~4. 웹 대시보드 특강
 | └ 빌드 1단계 | S&P 500은 10년 동안 어떻게 움직였나 | 주간 종가 꺾은선, 기간 선택, 최대 낙폭 |
 | 대시보드 수업 실습 | 병원 경영기획팀장이 전월 진료비와 환자 구성을 점검 | KPI 3개, 상병·종별·월별 차트 |
 | 대시보드 수업 실습 | 나이가 들수록 진료비는 얼마나 늘어날까 | 연령대·성별 1명당 진료비 그래프 |
-| 대시보드 과제 3 | 강의에서 얻은 것과 내 분야 적용 | 회고 노트, 공개 URL |
+| 대시보드 Supabase 연결 | 테이블 값이 바뀌면 새로고침만으로 화면이 바뀌게 | `market_daily` 2,576행·`claim` 38,375행, supabase-js, RLS |
+| 대시보드 과제 3 | 강의에서 얻은 것과 내 분야(백엔드) 적용 | 회고 노트, 공개 URL |
 
 주요 숫자
 - 종별 건당 진료비: 상급종합병원 499,558원, 의원 36,019원 (약 14배). 본인부담률은 의원 27.2%, 상급종합병원 19.8%
@@ -97,6 +100,9 @@ dashboard/                 # WEEK 3~4. 웹 대시보드 특강
 | 그래프 범례 등락률과 위쪽 지표가 다름 (+271.4% vs +264.2%) | 주간 데이터에 첫 거래일을 넣어 기간 시작을 맞춤 |
 | "달러 쌈" 신호에 "살 때 부담" 설명이 붙음 | 상황별로 설명 문장을 나눔 |
 | 다크 모드에서 차트 색이 안 바뀜 | 테마 변경 때 차트를 다시 그림 |
+| Supabase 에서 0행이 읽힘, 테이블을 못 찾음(PGRST205) | CSV 가져오기 확인, 테이블 목록 새로고침, RLS 읽기(SELECT) 정책 추가 |
+| 데이터는 열렸는데 브라우저에서만 "불러오는 중"에서 멈춤 | 순수 `fetch` 와 비교해 supabase-js 의 로그인 세션 확인이 원인임을 찾고, 공개 키를 `accessToken` 으로 넘겨 건너뜀 |
+| 브라우저 계산이 파이썬 집계와 소수 둘째 자리에서 3곳 다름 | 파이썬 3.12 `sum()` 과 같은 보정 덧셈으로 맞춰 8개 항목 모두 일치 |
 
 ## 5. 무엇을 할 수 있게 되었나
 - 청구·임상 데이터에서 현장 질문을 SQL로 바꾸고, 다중 `JOIN`·윈도우 함수·CTE로 답을 낼 수 있습니다.
@@ -104,9 +110,10 @@ dashboard/                 # WEEK 3~4. 웹 대시보드 특강
 - 독자와 목적에서 출발해 KPI와 차트를 정하고 대시보드 기획서를 쓸 수 있습니다.
 - AI Agent에게 단계별로 작업을 맡겨 데이터 집계부터 화면, 배포까지 진행하고, Agent가 낸 숫자를 SQL 결과와 대조할 수 있습니다.
 - Git으로 결과물을 관리하고 GitHub Pages로 공개 URL을 만들 수 있습니다.
+- 정적 대시보드를 Supabase 테이블에 연결하고, 공개 키와 RLS로 읽기 권한을 다룰 수 있습니다.
 
 ## 6. 다음 계획
-- Supabase에 `claim` 테이블을 올리고 대시보드를 DB에 직접 연결하기
+- Supabase 에 매일 데이터를 넣는 스케줄러와 집계 API 만들기 (지금은 CSV 를 직접 올리고 브라우저가 전체 행을 계산)
 - 월 선택 필터로 "전월" 기준 KPI 보기
 - 만성질환 환자 방문 간격(SQL 실습 3)을 대시보드에 붙여 장기 미방문 환자 목록 만들기
 - 매달 반복하는 집계·배포를 클로드 스킬로 만들기

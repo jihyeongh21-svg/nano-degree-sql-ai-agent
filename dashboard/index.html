@@ -3,19 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>진료비 월간 점검</title>
+<title>웹 대시보드 모음</title>
 <style>
   :root {
     color-scheme: light;
     --surface-0: #f5f5f3;
     --surface-1: #fcfcfb;
     --border: #e3e2de;
-    --grid: #ebeae6;
     --text-primary: #0b0b0b;
     --text-secondary: #52514e;
     --text-muted: #7a7974;
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
+    --accent: #2a78d6;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -23,12 +21,10 @@
       --surface-0: #121211;
       --surface-1: #1a1a19;
       --border: #2e2e2c;
-      --grid: #2a2a28;
       --text-primary: #f0efec;
       --text-secondary: #c3c2b7;
       --text-muted: #8f8e88;
-      --series-1: #3987e5;
-      --series-2: #d95926;
+      --accent: #3987e5;
     }
   }
   :root[data-theme="dark"] {
@@ -36,12 +32,10 @@
     --surface-0: #121211;
     --surface-1: #1a1a19;
     --border: #2e2e2c;
-    --grid: #2a2a28;
     --text-primary: #f0efec;
     --text-secondary: #c3c2b7;
     --text-muted: #8f8e88;
-    --series-1: #3987e5;
-    --series-2: #d95926;
+    --accent: #3987e5;
   }
   * { box-sizing: border-box; }
   body {
@@ -51,190 +45,57 @@
     font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
     line-height: 1.5;
   }
-  main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
-  header h1 { margin: 0 0 4px; font-size: 1.6rem; }
-  header p { margin: 0; color: var(--text-secondary); }
-  .persona {
-    margin-top: 12px;
-    padding: 10px 14px;
-    border-left: 3px solid var(--series-1);
-    background: var(--surface-1);
-    color: var(--text-secondary);
-    font-size: 0.92rem;
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  h2 { margin: 24px 0 10px; font-size: 1rem; color: var(--text-secondary); }
+  .lead { margin: 0 0 8px; color: var(--text-secondary); }
+  .list { display: grid; gap: 12px; }
+  a.card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px;
   }
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
-  .card {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-  }
-  .kpi .label { color: var(--text-secondary); font-size: 0.9rem; }
-  .kpi .value { font-size: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .kpi .sub { color: var(--text-muted); font-size: 0.82rem; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .card h2 { margin: 0 0 2px; font-size: 1.05rem; }
-  .card .desc { margin: 0 0 12px; color: var(--text-secondary); font-size: 0.88rem; }
-  .chart { position: relative; height: 340px; }
-  .wide { margin-top: 12px; }
-  .insight {
-    margin-top: 12px;
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px 18px;
-  }
-  .insight ul { margin: 6px 0 0; padding-left: 20px; }
-  details { margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); }
-  table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
-  th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
-  th:first-child, td:first-child { text-align: left; }
-  footer { margin-top: 24px; color: var(--text-muted); font-size: 0.8rem; }
-  footer a { color: inherit; }
-  @media (max-width: 760px) {
-    .kpis, .grid2 { grid-template-columns: 1fr; }
-    .chart { height: 300px; }
-  }
+  a.card:hover { border-color: var(--accent); }
+  .tag { font-size: 0.75rem; color: var(--accent); font-weight: 600; }
+  .title { font-size: 1.05rem; font-weight: 600; margin: 2px 0; }
+  .desc { color: var(--text-secondary); font-size: 0.9rem; }
+  footer { margin-top: 28px; color: var(--text-muted); font-size: 0.8rem; }
+  footer a { color: var(--accent); }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <h1>건강보험 청구 진료비 점검</h1>
-    <p>kr_claims 명세서 · 2024-01 ~ 2025-12</p>
-    <div class="persona">이 페이지는 <b>병원 경영기획팀장</b>이 <b>월초 경영회의 전날</b>에 <b>전월 진료비와 환자 구성을 점검</b>하기 위해 봅니다.</div>
-  </header>
+  <h1>웹 대시보드 모음</h1>
+  <p class="lead">오즈코딩스쿨 AI 헬스케어 3기 웹 대시보드 특강(2026-10-20 ~ 10-22)의 과제와 수업 실습입니다.</p>
 
-  <section class="kpis">
-    <div class="card kpi"><div class="label">총 명세서 수</div><div class="value" id="kpi-claims"></div><div class="sub">외래 + 입원</div></div>
-    <div class="card kpi"><div class="label">총 진료비</div><div class="value" id="kpi-amt"></div><div class="sub" id="kpi-amt-sub"></div></div>
-    <div class="card kpi"><div class="label">수진자 수</div><div class="value" id="kpi-pt"></div><div class="sub" id="kpi-pt-sub"></div></div>
-  </section>
+  <h2>과제: 주식투자 보조</h2>
+  <div class="list">
+    <a class="card" href="invest/">
+      <div class="tag">과제 1·2</div>
+      <div class="title">주식투자 보조 대시보드</div>
+      <div class="desc">시장 신호 6개, 지수·VIX·금리·환율 카드, 추세·위험 차트 4개, 적립식 시뮬레이터</div>
+    </a>
+    <a class="card" href="invest/sp500.html">
+      <div class="tag">빌드 1단계</div>
+      <div class="title">S&amp;P 500은 10년 동안 어떻게 움직였나</div>
+      <div class="desc">주간 종가 꺾은선, 기간 선택, 최대 낙폭과 연도별 수익률</div>
+    </a>
+  </div>
 
-  <section class="grid2">
-    <div class="card">
-      <h2>주상병별 명세서 수 상위 10</h2>
-      <p class="desc">급성 기관지염과 고혈압이 두 축입니다.</p>
-      <div class="chart"><canvas id="c-sick" aria-label="주상병별 명세서 수 막대 그래프" role="img"></canvas></div>
-      <details><summary>표로 보기</summary><table id="t-sick"></table></details>
-    </div>
-    <div class="card">
-      <h2>종별 건당 평균 진료비</h2>
-      <p class="desc">상급종합병원 한 건이 의원 약 14건과 같습니다.</p>
-      <div class="chart"><canvas id="c-type" aria-label="종별 건당 평균 진료비 막대 그래프" role="img"></canvas></div>
-      <details><summary>표로 보기</summary><table id="t-type"></table></details>
-    </div>
-  </section>
+  <h2>수업 실습: 건강보험 청구 데이터</h2>
+  <div class="list">
+    <a class="card" href="claims/">
+      <div class="tag">수업 실습</div>
+      <div class="title">건강보험 청구 대시보드</div>
+      <div class="desc">병원 경영기획팀장용. KPI 3개, 상병 상위 10, 종별 건당 진료비, 월별 추이</div>
+    </a>
+    <a class="card" href="claims/age-cost.html">
+      <div class="tag">수업 실습</div>
+      <div class="title">나이가 들수록 진료비는 얼마나 늘어날까</div>
+      <div class="desc">연령대·성별 환자 1명당 2년 진료비</div>
+    </a>
+  </div>
 
-  <section class="card wide">
-    <h2>월별 명세서 수: 전체 vs 호흡기 질환(J 코드)</h2>
-    <p class="desc">호흡기 질환은 겨울에 늘고 여름에 줄어듭니다.</p>
-    <div class="chart"><canvas id="c-month" aria-label="월별 명세서 수 꺾은선 그래프" role="img"></canvas></div>
-    <details><summary>표로 보기</summary><table id="t-month"></table></details>
-  </section>
-
-  <section class="insight">
-    <b>인사이트:</b> 명세서의 79%는 의원에서 나오지만, 건당 진료비는 상급종합병원이 의원의 약 14배입니다. 호흡기 질환 명세서는 11~3월 대부분 월 700~840건으로 6~9월(300~380건)의 2배 이상이므로 겨울 외래 인력과 예산을 먼저 점검합니다.
-    <ul>
-      <li>건당 진료비: 상급종합병원 499,558원, 의원 36,019원</li>
-      <li>본인부담률은 반대로 의원 27.2%, 상급종합병원 19.8%</li>
-      <li>호흡기 명세서: 2025년 12월 839건, 2025년 9월 315건</li>
-    </ul>
-  </section>
-
-  <footer>
-    데이터: 오즈코딩스쿨 SQL 특강 실습용 kr_claims (가상 명세서 + 심평원 공개 코드표). 실제 환자 기록이 아닙니다.
-    · 집계: <a href="scripts/build_data.py">scripts/build_data.py</a>
-  </footer>
+  <footer>정리 문서: <a href="https://github.com/jihyeongh21-svg/nano-degree-sql-ai-agent/tree/main/dashboard">dashboard/README.md</a></footer>
 </main>
-
-<script src="data.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script>
-  const D = window.DASHBOARD_DATA;
-  const fmt = n => n.toLocaleString("ko-KR");
-  const eok = n => (n / 1e8).toFixed(1) + "억 원";
-
-  document.getElementById("kpi-claims").textContent = fmt(D.kpi.claims) + "건";
-  document.getElementById("kpi-amt").textContent = eok(D.kpi.total_amt);
-  document.getElementById("kpi-amt-sub").textContent = "건당 평균 " + fmt(Math.round(D.kpi.total_amt / D.kpi.claims)) + "원";
-  document.getElementById("kpi-pt").textContent = fmt(D.kpi.patients) + "명";
-  document.getElementById("kpi-pt-sub").textContent = "1명당 명세서 " + (D.kpi.claims / D.kpi.patients).toFixed(1) + "건";
-
-  function table(id, head, rows) {
-    document.getElementById(id).innerHTML =
-      "<tr>" + head.map(h => "<th>" + h + "</th>").join("") + "</tr>" +
-      rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("");
-  }
-  table("t-sick", ["상병", "명세서"], D.top_sick.map(s => [s.code + " " + s.name, fmt(s.claims)]));
-  table("t-type", ["종별", "명세서", "건당 진료비(원)", "본인부담률(%)"], D.by_type.map(t => [t.name, fmt(t.claims), fmt(t.avg_amt), t.self_pct]));
-  table("t-month", ["월", "전체", "호흡기"], D.monthly.map(m => [m.month, fmt(m.all), fmt(m.resp)]));
-
-  const charts = [];
-  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
-
-  function render() {
-    charts.splice(0).forEach(c => c.destroy());
-    const ink = css("--text-secondary"), grid = css("--grid"), surface = css("--surface-1");
-    const s1 = css("--series-1"), s2 = css("--series-2");
-    Chart.defaults.color = ink;
-    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
-    Chart.defaults.borderColor = grid;
-
-    const tooltip = { backgroundColor: css("--text-primary"), titleColor: surface, bodyColor: surface, padding: 10, displayColors: true };
-
-    charts.push(new Chart(document.getElementById("c-sick"), {
-      type: "bar",
-      data: {
-        labels: D.top_sick.map(s => s.name.length > 14 ? s.name.slice(0, 14) + "…" : s.name),
-        datasets: [{ data: D.top_sick.map(s => s.claims), backgroundColor: s1, borderRadius: 4, borderSkipped: "start", barPercentage: 0.7 }]
-      },
-      options: {
-        indexAxis: "y", maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: {
-          title: items => { const s = D.top_sick[items[0].dataIndex]; return s.code + " " + s.name; },
-          label: i => fmt(i.raw) + "건" } } },
-        scales: { x: { grid: { color: grid }, ticks: { callback: v => fmt(v) } }, y: { grid: { display: false } } }
-      }
-    }));
-
-    charts.push(new Chart(document.getElementById("c-type"), {
-      type: "bar",
-      data: {
-        labels: D.by_type.map(t => t.name),
-        datasets: [{ data: D.by_type.map(t => t.avg_amt), backgroundColor: s1, borderRadius: 4, borderSkipped: "start", barPercentage: 0.6 }]
-      },
-      options: {
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { ...tooltip, callbacks: {
-          label: i => { const t = D.by_type[i.dataIndex]; return ["건당 " + fmt(t.avg_amt) + "원", "명세서 " + fmt(t.claims) + "건", "본인부담률 " + t.self_pct + "%"]; } } } },
-        scales: { y: { grid: { color: grid }, ticks: { callback: v => v ? (v / 10000) + "만" : "0" } }, x: { grid: { display: false } } }
-      }
-    }));
-
-    charts.push(new Chart(document.getElementById("c-month"), {
-      type: "line",
-      data: {
-        labels: D.monthly.map(m => m.month),
-        datasets: [
-          { label: "전체", data: D.monthly.map(m => m.all), borderColor: s1, backgroundColor: s1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25 },
-          { label: "호흡기 질환 (J)", data: D.monthly.map(m => m.resp), borderColor: s2, backgroundColor: s2, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25 }
-        ]
-      },
-      options: {
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { position: "top", align: "start", labels: { boxWidth: 12, boxHeight: 2 } },
-          tooltip: { ...tooltip, callbacks: { label: i => i.dataset.label + ": " + fmt(i.raw) + "건" } }
-        },
-        scales: { y: { beginAtZero: true, grid: { color: grid } }, x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
-      }
-    }));
-  }
-
-  render();
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-</script>
 </body>
 </html>

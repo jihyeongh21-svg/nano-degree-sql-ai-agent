@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주식투자 보조 대시보드</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f5f5f3;
+    --surface-1: #fcfcfb;
+    --border: #e3e2de;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #7a5bc7;
+    --good: #1f8a4c;
+    --warn: #b7791f;
+    --bad: #d1453b;
+    --neutral: #6b6a66;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border: #2e2e2c;
+      --grid: #2a2a28;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e88;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #9b7fe0;
+      --good: #3fae6b;
+      --warn: #d9a03f;
+      --bad: #e86a5f;
+      --neutral: #9a9993;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border: #2e2e2c;
+    --grid: #2a2a28;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e88;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #9b7fe0;
+    --good: #3fae6b;
+    --warn: #d9a03f;
+    --bad: #e86a5f;
+    --neutral: #9a9993;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  h2 { margin: 0 0 4px; font-size: 1rem; }
+  .lead { margin: 0 0 20px; color: var(--text-secondary); }
+  .desc { margin: 0 0 10px; color: var(--text-muted); font-size: 0.85rem; }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .grid { display: grid; gap: 14px; margin-bottom: 14px; }
+  .g2 { grid-template-columns: repeat(2, 1fr); }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g6 { grid-template-columns: repeat(6, 1fr); }
+
+  .signal .head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .signal .name { color: var(--text-muted); font-size: 0.8rem; }
+  .badge { font-size: 0.75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .signal .value { font-size: 1.2rem; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .signal .why { color: var(--text-secondary); font-size: 0.82rem; }
+  .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); } .neutral { color: var(--neutral); }
+
+  .tick .label { color: var(--text-muted); font-size: 0.8rem; }
+  .tick .value { font-size: 1.1rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tick .chg { font-size: 0.75rem; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+  .tick .chg span { margin-right: 6px; }
+  .tick .date { color: var(--text-muted); font-size: 0.7rem; }
+
+  .chart { position: relative; height: 300px; }
+  .chart.tall { height: 360px; }
+  .note { margin: 10px 0 0; color: var(--text-secondary); font-size: 0.85rem; }
+  details { margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+
+  .form { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; margin-bottom: 12px; }
+  .form label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-muted); }
+  .form input, .form select {
+    font: inherit; font-size: 0.95rem; padding: 5px 8px; min-width: 140px;
+    color: var(--text-primary); background: var(--surface-0); border: 1px solid var(--border); border-radius: 6px;
+  }
+  .form .check { flex-direction: row; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--text-secondary); }
+  .form .check input { min-width: 0; }
+  .result { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 10px; }
+
+  .disclaimer { margin-top: 20px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 8px; color: var(--text-muted); font-size: 0.8rem; }
+  footer { margin-top: 12px; color: var(--text-muted); font-size: 0.8rem; }
+
+  @media (max-width: 900px) {
+    .g6 { grid-template-columns: repeat(3, 1fr); }
+    .g3 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .g2, .g3 { grid-template-columns: 1fr; }
+    .g6, .result { grid-template-columns: repeat(2, 1fr); }
+    .chart, .chart.tall { height: 260px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>주식투자 보조 대시보드</h1>
+  <p class="lead" id="lead"></p>
+
+  <!-- 1. 오늘의 시장 신호 -->
+  <section class="grid g3" id="signals" aria-label="시장 신호"></section>
+
+  <!-- 2. 주요 지표 -->
+  <section class="card" style="margin-bottom:14px">
+    <div class="grid g6" id="ticks" style="margin:0"></div>
+  </section>
+
+  <!-- 3. 추세 -->
+  <section class="card" style="margin-bottom:14px">
+    <h2>S&amp;P 500 추세: 50일선과 200일선</h2>
+    <p class="desc">최근 2년 일별 종가. 50일선이 200일선을 위로 뚫으면 골든크로스(▲), 아래로 뚫으면 데드크로스(▼).</p>
+    <div class="chart tall"><canvas id="c-trend" role="img" aria-label="S&P 500 종가와 50일·200일 이동평균선"></canvas></div>
+    <p class="note" id="n-trend"></p>
+  </section>
+
+  <!-- 4. 위험 지표 -->
+  <section class="grid g3">
+    <div class="card">
+      <h2>고점 대비 하락률</h2>
+      <p class="desc">10년 주간. 지금 사상 최고가보다 얼마나 내려와 있나.</p>
+      <div class="chart"><canvas id="c-dd" role="img" aria-label="S&P 500 고점 대비 하락률"></canvas></div>
+      <p class="note" id="n-dd"></p>
+    </div>
+    <div class="card">
+      <h2>VIX 변동성 지수</h2>
+      <p class="desc">최근 2년. 20 이상은 불안, 30 이상은 공포 구간.</p>
+      <div class="chart"><canvas id="c-vix" role="img" aria-label="VIX 변동성 지수"></canvas></div>
+      <p class="note" id="n-vix"></p>
+    </div>
+    <div class="card">
+      <h2>장단기 금리차 (10년 − 2년)</h2>
+      <p class="desc">최근 2년. 0 아래(역전)는 경기 둔화 신호로 읽힙니다.</p>
+      <div class="chart"><canvas id="c-spread" role="img" aria-label="미 국채 10년물과 2년물 금리차"></canvas></div>
+      <p class="note" id="n-spread"></p>
+    </div>
+  </section>
+
+  <!-- 5. 적립식 시뮬레이터 -->
+  <section class="card">
+    <h2>적립식 투자 시뮬레이터 (S&amp;P 500)</h2>
+    <p class="desc">매달 말 종가로 같은 금액을 샀다면 지금 얼마일까. 원화로 넣어 달러 지수를 산다고 가정합니다. 배당·수수료·세금은 빼고 계산합니다.</p>
+    <div class="form">
+      <label>매달 투자금(원)<input id="f-amt" type="number" min="10000" step="10000" value="500000"></label>
+      <label>시작 월<select id="f-start"></select></label>
+      <label class="check"><input id="f-fx" type="checkbox" checked>환율 변화 반영</label>
+    </div>
+    <div class="result" id="dca-result"></div>
+    <div class="chart"><canvas id="c-dca" role="img" aria-label="적립식 투자 원금과 평가금액"></canvas></div>
+    <details><summary>표로 보기 (연말 기준)</summary><table id="t-dca"></table></details>
+  </section>
+
+  <div class="disclaimer">
+    이 대시보드는 공개 시장 데이터를 정리한 학습용 보조 자료이며 투자 권유가 아닙니다.
+    신호 기준은 널리 쓰이는 단순 규칙(200일선, RSI 70/30, VIX 20/30, 금리차 0)이고, 과거 수익률이 미래 수익을 보장하지 않습니다.
+  </div>
+  <footer id="foot"></footer>
+</main>
+
+<script src="invest_data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const D = window.INVEST_DATA, C = D.cards, G = D.signals;
+  const num = (n, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const won = n => Math.round(n).toLocaleString("ko-KR") + "원";
+  const man = n => (n / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "만 원";
+  const sign = (n, d = 1, u = "%") => (n > 0 ? "+" : "") + n.toFixed(d) + u;
+  const kdate = s => s.replaceAll("-", ".");
+  const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  document.getElementById("lead").textContent =
+    "미국 지수·변동성·금리·환율로 지금 시장 분위기를 한눈에 봅니다. 기준일 " + kdate(C.sp500.date) +
+    " (지표마다 마지막 발표일이 다를 수 있습니다).";
+  document.getElementById("foot").textContent = "데이터: " + D.source + ". 집계: scripts/build_invest.py";
+
+  // 1. 신호: [이름, 값, 상태, 배지, 설명]
+  const above200 = (G.sp_close / G.ma200 - 1) * 100;
+  const fxGap = (G.usdkrw / G.usdkrw_1y_avg - 1) * 100;
+  const signals = [
+    ["추세 (200일선)", num(G.sp_close), above200 >= 0 ? "good" : "bad", above200 >= 0 ? "상승 추세" : "하락 추세",
+      "S&P 500이 200일선(" + num(G.ma200) + ")보다 " + sign(above200) + (above200 >= 0 ? " 위" : " 아래")],
+    ["모멘텀 (RSI 14일)", G.rsi14.toFixed(1), G.rsi14 >= 70 ? "warn" : G.rsi14 <= 30 ? "good" : "neutral",
+      G.rsi14 >= 70 ? "과열" : G.rsi14 <= 30 ? "과매도" : "중립", "70 이상 과열, 30 이하 과매도"],
+    ["변동성 (VIX)", G.vix.toFixed(2), G.vix >= 30 ? "bad" : G.vix >= 20 ? "warn" : G.vix >= 15 ? "neutral" : "good",
+      G.vix >= 30 ? "공포" : G.vix >= 20 ? "불안" : G.vix >= 15 ? "보통" : "안정", "15 미만 안정, 20 이상 불안, 30 이상 공포"],
+    ["고점 대비", sign(G.drawdown), G.drawdown <= -20 ? "bad" : G.drawdown <= -10 ? "warn" : G.drawdown <= -5 ? "neutral" : "good",
+      G.drawdown <= -20 ? "약세장" : G.drawdown <= -10 ? "조정" : G.drawdown <= -5 ? "숨 고르기" : "고점 부근",
+      "사상 최고가 " + num(G.high) + " 기준. −10% 조정, −20% 약세장"],
+    ["장단기 금리차", sign(G.spread, 2, "%p"), G.spread < 0 ? "warn" : "good", G.spread < 0 ? "역전" : "정상",
+      "미 국채 10년 " + num(C.us10y.value) + "% − 2년 " + num(C.us2y.value) + "%"],
+    ["원/달러 환율", num(G.usdkrw), fxGap >= 3 ? "warn" : fxGap <= -3 ? "good" : "neutral",
+      fxGap >= 3 ? "달러 비쌈" : fxGap <= -3 ? "달러 쌈" : "평균 수준",
+      "1년 평균 " + num(G.usdkrw_1y_avg) + "원보다 " + sign(fxGap) +
+      (fxGap >= 3 ? ". 원화로 미국 주식을 사기 부담스러운 때" : fxGap <= -3 ? ". 원화로 미국 주식을 사기 유리한 편" : "")]
+  ];
+  document.getElementById("signals").innerHTML = signals.map(([n, v, s, b, w]) =>
+    '<div class="card signal"><div class="head"><span class="name">' + n + '</span><span class="badge ' + s + '">' + b +
+    '</span></div><div class="value">' + v + '</div><div class="why">' + w + "</div></div>").join("");
+
+  // 2. 지표 카드
+  const ticks = [
+    ["S&P 500", "sp500", 2, "%"], ["나스닥", "nasdaq", 2, "%"], ["다우존스", "dow", 2, "%"],
+    ["VIX", "vix", 2, "%"], ["미 국채 10년", "us10y", 2, "%p"], ["원/달러", "usdkrw", 2, "%"]
+  ];
+  const chg = (v, u) => '<span class="' + (v > 0 ? "good" : v < 0 ? "bad" : "") + '">' + sign(v, 2, u) + "</span>";
+  document.getElementById("ticks").innerHTML = ticks.map(([n, k, d, u]) => {
+    const c = C[k];
+    return '<div class="tick"><div class="label">' + n + '</div><div class="value">' + num(c.value, d) + (k === "us10y" ? "%" : "") +
+      '</div><div class="chg">1일 ' + chg(c.d1, u) + "1개월 " + chg(c.m1, u) + '</div><div class="chg">연초 대비 ' + chg(c.ytd, u) +
+      '</div><div class="date">' + kdate(c.date) + "</div></div>";
+  }).join("");
+
+  // 차트 공통
+  const charts = {};
+  function monthTicks(labels) {
+    return { autoSkip: false, maxRotation: 0, callback(v, i) {
+      const l = labels[v], p = labels[v - 1];
+      if (i === 0 || l.slice(0, 7) === p.slice(0, 7)) return null;
+      const m = +l.slice(5, 7);
+      return m === 1 ? l.slice(0, 4) : (m % 3 === 1 ? m + "월" : null);
+    } };
+  }
+  function yearTicks(labels) {
+    return { autoSkip: false, maxRotation: 0, callback(v, i) {
+      // 좁은 카드에서도 겹치지 않게 짝수 해만
+      const l = labels[v];
+      return i > 0 && l.slice(0, 4) !== labels[v - 1].slice(0, 4) && +l.slice(0, 4) % 2 === 0 ? l.slice(0, 4) : null;
+    } };
+  }
+  function base(extra) {
+    const surface = css("--surface-1");
+    return Object.assign({
+      maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { position: "top", align: "start", labels: { boxWidth: 12, boxHeight: 12 } },
+        // 기준선과 빈 점(교차 표시)은 툴팁에서 뺀다
+        tooltip: { backgroundColor: css("--text-primary"), titleColor: surface, bodyColor: surface, padding: 10,
+          filter: i => !i.dataset.isRef && i.raw !== null,
+          callbacks: { title: i => kdate(i[0].label) } }
+      }
+    }, extra);
+  }
+  const hline = (labels, y, color, label) => ({ isRef: true, label, data: labels.map(() => y), borderColor: color, borderWidth: 1,
+    borderDash: [4, 4], pointRadius: 0, pointHoverRadius: 0, fill: false });
+  function draw(id, config) {
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(document.getElementById(id), config);
+  }
+
+  function renderTrend() {
+    const L = D.trend.map(r => r[0]);
+    const cross = Object.fromEntries(D.crosses);
+    const marks = kind => D.trend.map(r => cross[r[0]] === kind ? r[2] : null);
+    draw("c-trend", { type: "line", data: { labels: L, datasets: [
+      { label: "종가", data: D.trend.map(r => r[1]), borderColor: css("--series-1"), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+      { label: "50일선", data: D.trend.map(r => r[2]), borderColor: css("--series-2"), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0 },
+      { label: "200일선", data: D.trend.map(r => r[3]), borderColor: css("--series-3"), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0 },
+      { label: "골든크로스", data: marks("golden"), showLine: false, pointStyle: "triangle", pointRadius: 8,
+        backgroundColor: css("--good"), borderColor: css("--good") },
+      { label: "데드크로스", data: marks("dead"), showLine: false, pointStyle: "triangle", rotation: 180, pointRadius: 8,
+        backgroundColor: css("--bad"), borderColor: css("--bad") }
+    ] }, options: base({
+      plugins: Object.assign(base().plugins, { tooltip: Object.assign(base().plugins.tooltip, {
+        callbacks: { title: i => kdate(i[0].label), label: i => i.dataset.label + ": " + num(i.parsed.y) } }) }),
+      scales: { x: { grid: { display: false }, ticks: monthTicks(L) },
+                y: { grid: { color: css("--grid") }, ticks: { callback: v => v.toLocaleString("en-US") } } }
+    }) });
+    const lc = G.last_cross;
+    document.getElementById("n-trend").textContent =
+      "현재 종가 " + num(G.sp_close) + ", 50일선 " + num(G.ma50) + ", 200일선 " + num(G.ma200) + ". " +
+      (lc ? "마지막 교차는 " + kdate(lc[0]) + " " + (lc[1] === "golden" ? "골든크로스" : "데드크로스") + "입니다." : "");
+  }
+
+  function renderDD() {
+    const L = D.drawdown.map(r => r[0]);
+    const worst = D.drawdown.reduce((b, r) => r[1] < b[1] ? r : b);
+    const bad = css("--bad");
+    draw("c-dd", { type: "line", data: { labels: L, datasets: [
+      { label: "고점 대비(%)", data: D.drawdown.map(r => r[1]), borderColor: bad, backgroundColor: bad + "33",
+        fill: "origin", borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+      hline(L, -10, css("--warn"), "조정 −10%"), hline(L, -20, bad, "약세장 −20%")
+    ] }, options: base({
+      plugins: Object.assign(base().plugins, { legend: { display: false } }),
+      scales: { x: { grid: { display: false }, ticks: yearTicks(L) },
+                y: { max: 0, grid: { color: css("--grid") }, ticks: { callback: v => v + "%" } } }
+    }) });
+    document.getElementById("n-dd").textContent = "지금 " + sign(G.drawdown) + ". 10년 중 가장 깊었던 때는 " +
+      kdate(worst[0]) + " 주의 " + sign(worst[1]) + "입니다.";
+  }
+
+  function renderVix() {
+    const L = D.vix.map(r => r[0]);
+    const vals = D.vix.map(r => r[1]);
+    const peak = D.vix.reduce((b, r) => r[1] > b[1] ? r : b);
+    const days20 = vals.filter(v => v >= 20).length;
+    draw("c-vix", { type: "line", data: { labels: L, datasets: [
+      { label: "VIX", data: vals, borderColor: css("--series-1"), borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+      hline(L, 20, css("--warn"), "불안 20"), hline(L, 30, css("--bad"), "공포 30")
+    ] }, options: base({
+      plugins: Object.assign(base().plugins, { legend: { display: false } }),
+      scales: { x: { grid: { display: false }, ticks: monthTicks(L) }, y: { beginAtZero: true, grid: { color: css("--grid") } } }
+    }) });
+    document.getElementById("n-vix").textContent = "지금 " + G.vix.toFixed(2) + ". 2년 최고는 " + kdate(peak[0]) + " " +
+      peak[1].toFixed(2) + ", 20 이상이었던 날은 " + days20 + "일(" + Math.round(days20 / vals.length * 100) + "%)입니다.";
+  }
+
+  function renderSpread() {
+    const L = D.spread.map(r => r[0]);
+    const vals = D.spread.map(r => r[1]);
+    const inverted = vals.filter(v => v < 0).length;
+    const s1 = css("--series-1");
+    draw("c-spread", { type: "line", data: { labels: L, datasets: [
+      { label: "금리차(%p)", data: vals, borderColor: s1, backgroundColor: s1 + "22", fill: "origin",
+        borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 3 },
+      hline(L, 0, css("--text-muted"), "0")
+    ] }, options: base({
+      plugins: Object.assign(base().plugins, { legend: { display: false } }),
+      scales: { x: { grid: { display: false }, ticks: monthTicks(L) },
+                y: { grid: { color: css("--grid") }, ticks: { callback: v => v.toFixed(1) + "%p" } } }
+    }) });
+    document.getElementById("n-spread").textContent = "지금 " + sign(G.spread, 2, "%p") + ". 최근 2년 중 역전된 날은 " +
+      inverted + "일입니다.";
+  }
+
+  // 5. 적립식
+  const M = D.monthly;
+  const startSel = document.getElementById("f-start");
+  startSel.innerHTML = M.slice(0, -1).map((m, i) => '<option value="' + i + '">' + m[0].replace("-", "년 ") + "월</option>").join("");
+  startSel.value = String(M.findIndex(m => m[0] === (+M[M.length - 1][0].slice(0, 4) - 5) + M[M.length - 1][0].slice(4)));
+  if (startSel.value === "-1") startSel.value = "0";
+
+  function simulate() {
+    const amt = Math.max(0, +document.getElementById("f-amt").value || 0);
+    const useFx = document.getElementById("f-fx").checked;
+    const from = +startSel.value;
+    const fxNow = M[M.length - 1][2];
+    let units = 0, paid = 0;
+    const rows = M.slice(from).map(([m, px, fx]) => {
+      const rate = useFx ? fx : fxNow;
+      units += amt / (px * rate);
+      paid += amt;
+      return { m, paid, value: units * px * rate };
+    });
+    return { rows, last: rows[rows.length - 1], months: rows.length };
+  }
+  function renderDCA() {
+    const { rows, last, months } = simulate();
+    const ret = last.paid ? (last.value / last.paid - 1) * 100 : 0;
+    document.getElementById("dca-result").innerHTML = [
+      ["투자 기간", months + "개월"], ["낸 돈", man(last.paid)], ["지금 평가금", man(last.value)],
+      ["수익률", '<span class="' + (ret >= 0 ? "good" : "bad") + '">' + sign(ret) + "</span>"]
+    ].map(([l, v]) => '<div class="tick"><div class="label">' + l + '</div><div class="value">' + v + "</div></div>").join("");
+    const L = rows.map(r => r.m);
+    const s1 = css("--series-1");
+    draw("c-dca", { type: "line", data: { labels: L, datasets: [
+      { label: "평가금", data: rows.map(r => Math.round(r.value)), borderColor: s1, backgroundColor: s1 + "22", fill: "origin",
+        borderWidth: 2, pointRadius: 0, pointHoverRadius: 3 },
+      { label: "낸 돈", data: rows.map(r => r.paid), borderColor: css("--text-muted"), borderWidth: 1.5, borderDash: [5, 4],
+        pointRadius: 0, pointHoverRadius: 3 }
+    ] }, options: base({
+      plugins: Object.assign(base().plugins, { tooltip: Object.assign(base().plugins.tooltip, {
+        callbacks: { title: i => i[0].label.replace("-", "년 ") + "월", label: i => i.dataset.label + ": " + won(i.parsed.y) } }) }),
+      scales: { x: { grid: { display: false }, ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8,
+                  callback(v) { return L[v].replace("-", ".") } } },
+                y: { beginAtZero: true, grid: { color: css("--grid") }, ticks: { callback: v => v ? man(v) : "0" } } }
+    }) });
+    document.getElementById("t-dca").innerHTML = "<tr><th>시점</th><th>낸 돈</th><th>평가금</th><th>수익률</th></tr>" +
+      rows.filter((r, i) => r.m.endsWith("-12") || i === rows.length - 1).map(r =>
+        "<tr><td>" + r.m.replace("-", ".") + "</td><td>" + won(r.paid) + "</td><td>" + won(r.value) + "</td><td>" +
+        sign((r.value / r.paid - 1) * 100) + "</td></tr>").join("");
+  }
+  ["f-amt", "f-start", "f-fx"].forEach(id => document.getElementById(id).addEventListener("input", renderDCA));
+
+  function renderAll() {
+    Chart.defaults.color = css("--text-secondary");
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    renderTrend(); renderDD(); renderVix(); renderSpread(); renderDCA();
+  }
+  renderAll();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+</script>
+</body>
+</html>

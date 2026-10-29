@@ -1,6 +1,6 @@
 """kr_claims 백업 시트에서 CSV를 받아 대시보드용 집계를 data.js로 만든다.
 
-실행: python3 dashboard/scripts/build_data.py
+실행: python3 dashboard/claims/scripts/build_data.py
 """
 import csv
 import json

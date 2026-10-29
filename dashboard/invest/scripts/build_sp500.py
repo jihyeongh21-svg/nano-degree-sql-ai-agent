@@ -1,6 +1,6 @@
 """FRED에서 S&P 500 일별 종가를 받아 주간 종가와 요약 지표를 sp500_data.js로 만든다.
 
-실행: python3 dashboard/scripts/build_sp500.py
+실행: python3 dashboard/invest/scripts/build_sp500.py
 """
 import csv
 import json

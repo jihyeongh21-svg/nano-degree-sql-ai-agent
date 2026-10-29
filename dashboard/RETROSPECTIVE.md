@@ -1,7 +1,8 @@
 # 회고 노트 (과제 3)
 
 - 대시보드 공개 URL: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/
-- 관심 주제 그래프: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html
+- 과제 1 그래프 (S&P 500): https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/sp500.html
+- 실습 그래프 (연령대별 진료비): https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html
 - 저장소: https://github.com/jihyeongh21-svg/nano-degree-sql-ai-agent
 
 ## 강의에서 얻은 것

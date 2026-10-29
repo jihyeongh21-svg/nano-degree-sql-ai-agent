@@ -7,7 +7,8 @@
 | SQL | [README.md](README.md), [`sql/`](sql/) |
 | AI Agent (웹 대시보드) | [dashboard/README.md](dashboard/README.md), [회고 노트](dashboard/RETROSPECTIVE.md), [재현용 프롬프트](dashboard/PROMPTS.md) |
 | 대시보드 | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/ |
-| 관심 주제 그래프 | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html |
+| 과제 1 그래프 (S&P 500) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/sp500.html |
+| 실습 그래프 (연령대별 진료비) | https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html |
 
 ## 1. 4주 흐름
 
@@ -44,7 +45,8 @@
 | SQL 실습 2 · 과제 2 Q1~Q2 | 종별·상병별로 명세서와 진료비가 얼마나 다른가 | `GROUP BY`, `HAVING` |
 | SQL 실습 3 · 과제 2 Q3 | 고혈압·당뇨 환자 중 석 달 넘게 오지 않은 사람은 | 윈도우 함수, CTE |
 | SQL 실습 4~5 · 과제 3 | 폐암 병기 그룹별 3년 안 사망률은 | CTE, `CASE`, `LEFT JOIN` |
-| 대시보드 과제 1 | 나이가 들수록 진료비는 얼마나 늘어날까 | 연령대·성별 1명당 진료비 그래프 |
+| 대시보드 과제 1 | S&P 500은 10년 동안 어떻게 움직였나 | 주간 종가 꺾은선, 기간 선택, 최대 낙폭 |
+| 대시보드 실습 | 나이가 들수록 진료비는 얼마나 늘어날까 | 연령대·성별 1명당 진료비 그래프 |
 | 대시보드 과제 2 | 병원 경영기획팀장이 전월 진료비와 환자 구성을 점검 | KPI 3개, 상병·종별·월별 차트 |
 | 대시보드 과제 3 | 강의에서 얻은 것과 내 분야 적용 | 회고 노트, 공개 URL |
 
@@ -52,8 +54,9 @@
 - 종별 건당 진료비: 상급종합병원 499,558원, 의원 36,019원 (약 14배). 본인부담률은 의원 27.2%, 상급종합병원 19.8%
 - 호흡기 명세서: 11~3월 대부분 월 700~840건, 6~9월 300~380건
 - 폐암 3년 안 사망률: 초기 13.0%, 3기 48.7%, 4기 63.8% (2010~2017 진단 6,873명)
+- S&P 500 (2016-10-31 ~ 2026-10-28): +264.2%, 연평균 +13.8%, 최대 낙폭 -33.9%(2020년 코로나19)
 
-> 두 데이터 모두 실제 환자 기록이 아닌 실습용 데이터입니다.
+> 청구·폐암 데이터는 실제 환자 기록이 아닌 실습용 데이터입니다. S&P 500은 FRED 실제 지수입니다.
 
 ## 4. 어떤 문제를 해결했나
 

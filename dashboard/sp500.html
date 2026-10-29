@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S&amp;P 500 주가 변동</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-0: #f5f5f3;
+    --surface-1: #fcfcfb;
+    --border: #e3e2de;
+    --grid: #ebeae6;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted: #7a7974;
+    --series-1: #2a78d6;
+    --up: #1f8a4c;
+    --down: #d1453b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --surface-0: #121211;
+      --surface-1: #1a1a19;
+      --border: #2e2e2c;
+      --grid: #2a2a28;
+      --text-primary: #f0efec;
+      --text-secondary: #c3c2b7;
+      --text-muted: #8f8e88;
+      --series-1: #3987e5;
+      --up: #3fae6b;
+      --down: #e86a5f;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-0: #121211;
+    --surface-1: #1a1a19;
+    --border: #2e2e2c;
+    --grid: #2a2a28;
+    --text-primary: #f0efec;
+    --text-secondary: #c3c2b7;
+    --text-muted: #8f8e88;
+    --series-1: #3987e5;
+    --up: #3fae6b;
+    --down: #e86a5f;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 48px; }
+  h1 { margin: 0 0 4px; font-size: 1.5rem; }
+  .lead { margin: 0 0 20px; color: var(--text-secondary); }
+  .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .stat .label { color: var(--text-muted); font-size: 0.8rem; }
+  .stat .value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .sub { color: var(--text-muted); font-size: 0.75rem; }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .ranges { display: flex; gap: 6px; margin-bottom: 8px; }
+  .ranges button {
+    font: inherit; font-size: 0.85rem; padding: 3px 10px; cursor: pointer;
+    background: transparent; color: var(--text-secondary);
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .ranges button[aria-pressed="true"] { background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary); }
+  .chart { position: relative; height: 380px; }
+  .note { margin-top: 12px; color: var(--text-secondary); font-size: 0.9rem; }
+  details { margin-top: 10px; font-size: 0.85rem; color: var(--text-secondary); }
+  table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  th, td { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: right; }
+  th:first-child, td:first-child { text-align: left; }
+  footer { margin-top: 20px; color: var(--text-muted); font-size: 0.8rem; }
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .chart { height: 300px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>S&amp;P 500은 10년 동안 어떻게 움직였나</h1>
+  <p class="lead" id="lead"></p>
+
+  <div class="card">
+    <div class="stats" id="stats"></div>
+    <div class="ranges" role="group" aria-label="기간 선택">
+      <button type="button" data-years="1">1년</button>
+      <button type="button" data-years="3">3년</button>
+      <button type="button" data-years="5">5년</button>
+      <button type="button" data-years="10" aria-pressed="true">10년</button>
+    </div>
+    <div class="chart"><canvas id="c-sp" aria-label="S&P 500 주간 종가 꺾은선 그래프" role="img"></canvas></div>
+    <p class="note" id="note"></p>
+    <details><summary>표로 보기 (연도별 수익률)</summary><table id="t-year"></table></details>
+  </div>
+
+  <footer>데이터: FRED (Federal Reserve Bank of St. Louis) SP500 일별 종가, 그래프는 주간 마지막 거래일 기준. 집계: scripts/build_sp500.py</footer>
+</main>
+
+<script src="sp500_data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+  const S = window.SP500_DATA;
+  const sm = S.summary;
+  const fmt = n => n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = n => (n > 0 ? "+" : "") + n.toFixed(1) + "%";
+  const cls = n => n >= 0 ? "up" : "down";
+  const kdate = s => { const [y, m, d] = s.split("-"); return y + "." + m + "." + d; };
+
+  document.getElementById("lead").textContent =
+    "주간 종가 기준 " + kdate(sm.first[0]) + " ~ " + kdate(sm.last[0]) + ". 기간을 바꾸면 그 구간의 등락률을 다시 계산합니다.";
+
+  document.getElementById("stats").innerHTML = [
+    ["최근 종가", fmt(sm.last[1]), kdate(sm.last[0])],
+    ["10년 상승률", '<span class="up">' + pct(sm.total_pct) + "</span>", "연평균 " + pct(sm.cagr_pct)],
+    ["최고가", fmt(sm.high[1]), kdate(sm.high[0])],
+    ["최대 낙폭", '<span class="down">' + pct(sm.mdd_pct) + "</span>", kdate(sm.mdd_peak[0]) + " → " + kdate(sm.mdd_trough[0])]
+  ].map(([l, v, s]) => '<div class="stat"><div class="label">' + l + '</div><div class="value">' + v +
+    '</div><div class="sub">' + s + "</div></div>").join("");
+
+  const best = S.yearly.reduce((b, y) => y.pct > b.pct ? y : b);
+  const worst = S.yearly.reduce((b, y) => y.pct < b.pct ? y : b);
+  const lastYear = S.yearly[S.yearly.length - 1];
+  document.getElementById("note").textContent =
+    "10년 동안 약 " + (sm.last[1] / sm.first[1]).toFixed(1) + "배가 됐습니다. 코로나19 충격 때 " +
+    kdate(sm.mdd_peak[0]) + " 고점에서 한 달여 만에 " + pct(sm.mdd_pct) + " 떨어졌지만 그해를 " +
+    pct(S.yearly.find(y => y.year === 2020).pct) + "로 마쳤습니다. 가장 나빴던 해는 " + worst.year + "년(" + pct(worst.pct) +
+    "), 가장 좋았던 해는 " + best.year + "년(" + pct(best.pct) + ")입니다.";
+
+  document.getElementById("t-year").innerHTML =
+    "<tr><th>연도</th><th>연말 종가</th><th>수익률</th></tr>" +
+    S.yearly.map(y => "<tr><td>" + y.year + (y === lastYear ? " (" + kdate(sm.last[0]).slice(5) + "까지)" : "") +
+      "</td><td>" + fmt(y.close) + '</td><td class="' + cls(y.pct) + '">' + pct(y.pct) + "</td></tr>").join("");
+
+  let chart, years = 10;
+  function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function slice() {
+    const end = new Date(sm.last[0]);
+    const start = new Date(end); start.setFullYear(end.getFullYear() - years);
+    return S.weekly.filter(([d]) => new Date(d) >= start);
+  }
+  function render() {
+    if (chart) chart.destroy();
+    const pts = slice();
+    const base = pts[0][1];
+    const change = (pts[pts.length - 1][1] / base - 1) * 100;
+    const line = css(change >= 0 ? "--series-1" : "--down");
+    const surface = css("--surface-1");
+    Chart.defaults.color = css("--text-secondary");
+    Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+    chart = new Chart(document.getElementById("c-sp"), {
+      type: "line",
+      data: {
+        labels: pts.map(p => p[0]),
+        datasets: [{
+          label: "S&P 500 (" + years + "년 " + pct(change) + ")",
+          data: pts.map(p => p[1]),
+          borderColor: line, backgroundColor: line + "22", fill: "start",
+          borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.1
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: { position: "top", align: "start", labels: { boxWidth: 12, boxHeight: 12 } },
+          tooltip: {
+            backgroundColor: css("--text-primary"), titleColor: surface, bodyColor: surface, padding: 10,
+            callbacks: {
+              title: i => kdate(i[0].label),
+              label: i => fmt(i.parsed.y) + " (구간 시작 대비 " + pct((i.parsed.y / base - 1) * 100) + ")"
+            }
+          }
+        },
+        scales: {
+          y: { grid: { color: css("--grid") }, ticks: { callback: v => v.toLocaleString("en-US") } },
+          // 해(1년 구간은 달)가 바뀌는 첫 주에만 눈금 표시
+          x: { grid: { display: false }, ticks: { autoSkip: false, maxRotation: 0,
+            callback(v, i) {
+              const key = l => years <= 1 ? l.slice(0, 7) : l.slice(0, 4);
+              const l = this.getLabelForValue(v);
+              if (i === 0 || key(l) === key(this.getLabelForValue(v - 1))) return null;
+              return years <= 1 ? (l.slice(5, 7) === "01" ? l.slice(0, 4) : +l.slice(5, 7) + "월") : l.slice(0, 4);
+            } } }
+        }
+      }
+    });
+  }
+  document.querySelectorAll(".ranges button").forEach(b => b.addEventListener("click", () => {
+    years = +b.dataset.years;
+    document.querySelectorAll(".ranges button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    render();
+  }));
+  render();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+</script>
+</body>
+</html>

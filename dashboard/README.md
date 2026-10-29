@@ -5,8 +5,9 @@
 코드를 직접 짜지 않고 AI Agent인 Claude Code에게 한국어로 작업을 맡겨 데이터 준비, 집계, 화면 구현, 배포까지 진행했습니다.
 
 - 기간: 2026-10-20 ~ 10-22 (오즈코딩스쿨 AI 헬스케어 3기 웹 대시보드 특강, 3일), 과제 마무리 10-28
-- 데이터: `kr_claims` 명세서 38,375건(2024-01 ~ 2025-12), 요양기관 2,184곳, 상병마스터 21,299건, 수진자 정보
+- 데이터: `kr_claims` 명세서 38,375건(2024-01 ~ 2025-12), 요양기관 2,184곳, 상병마스터 21,299건, 수진자 정보 / 과제 1은 S&P 500 일별 종가(FRED)
 - **대시보드**: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/
+- **과제 1 그래프 (S&P 500)**: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/sp500.html
 
 > 데이터는 실제 환자 기록이 아닌 실습용 가상 데이터입니다. 숫자를 실제 통계로 해석하지 않습니다.
 
@@ -36,7 +37,7 @@
 [Claude Code]
    ├─ 데이터 받기 ──▶ kr_claims 백업 시트 → scripts/.cache/*.csv
    ├─ 집계 ────────▶ scripts/build_data.py → data.js
-   ├─ 화면 생성 ───▶ index.html (대시보드), age-cost.html (관심 주제 그래프)
+   ├─ 화면 생성 ───▶ index.html (대시보드), sp500.html (과제 1), age-cost.html (실습)
    ├─ 검증 ────────▶ SQL 결과와 숫자 대조, Edge headless 스크린샷
    └─ 배포 ────────▶ git push → GitHub Pages 공개 URL
 ```
@@ -50,7 +51,10 @@
 | 파일 | 내용 |
 | --- | --- |
 | [`index.html`](index.html) | 과제 2 대시보드 |
-| [`age-cost.html`](age-cost.html) | 과제 1 관심 주제 그래프 |
+| [`sp500.html`](sp500.html) | 과제 1 그래프: S&P 500 주가 변동 |
+| [`sp500_data.js`](sp500_data.js) | S&P 500 주간 종가·요약 (자동 생성) |
+| [`scripts/build_sp500.py`](scripts/build_sp500.py) | FRED 다운로드 + 집계 |
+| [`age-cost.html`](age-cost.html) | 실습 그래프: 연령대별 진료비 |
 | [`data.js`](data.js) | 집계 결과 (자동 생성) |
 | [`scripts/build_data.py`](scripts/build_data.py) | CSV 다운로드 + 집계 |
 | [`PROMPTS.md`](PROMPTS.md) | 재현용 프롬프트 |
@@ -62,7 +66,8 @@
 - **종별 건당 평균 진료비**: 세로 막대, 툴팁에 명세서 수와 본인부담률
 - **월별 꺾은선**: 전체 vs 호흡기 질환(`J%`) 명세서
 - **한 줄 인사이트**: 숫자 근거와 함께 대시보드 하단에 표시
-- **관심 주제 그래프**: 연령대·성별 환자 1명당 2년 진료비
+- **과제 1 그래프**: S&P 500 10년 주간 종가 꺾은선, 1·3·5·10년 기간 선택, 최대 낙폭·연도별 수익률
+- **실습 그래프**: 연령대·성별 환자 1명당 2년 진료비
 - **접근성**: 차트마다 "표로 보기", 라이트·다크 모드, 모바일 한 열 배치
 
 ## 6. 내가 수행한 내용
@@ -76,7 +81,8 @@
   | KPI | 총 명세서 수, 총 진료비, 수진자 수 |
   | 차트 | 상병별 명세서 막대, 종별 건당 진료비 막대, 월별 꺾은선 |
 
-- **관심 주제 선정**: "나이가 들수록 진료비는 얼마나 늘어날까"를 과제 1 주제로 정함
+- **과제 1 주제 선정**: "S&P 500은 10년 동안 어떻게 움직였나"를 과제 1 주제로 정함
+- **실습 주제**: "나이가 들수록 진료비는 얼마나 늘어날까"를 청구 데이터로 실습
 - **Agent 작업 지시**: 데이터 준비 → 집계 → KPI → 차트 → 인사이트 → 배포 순서로 단계별 요청
 - **숫자 검증**: Agent가 낸 숫자를 SQL 수업 결과와 대조 (7절)
 - **인사이트 문장 수정**: 데이터 범위를 벗어나는 달을 확인하고 표현을 고침
@@ -123,7 +129,19 @@ Windows Edge headless로 1200px 폭 스크린샷을 찍어 라벨 겹침과 잘�
 
 **인사이트**: 명세서 대부분은 의원에서 나오지만 진료비 단가는 상급종합병원이 훨씬 높습니다. 호흡기 질환이 겨울에 2배 이상 늘어나므로 겨울 외래 인력과 예산을 먼저 점검합니다.
 
-### 관심 주제 그래프 (과제 1)
+### S&P 500 주가 변동 (과제 1)
+- URL: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/sp500.html
+- 데이터: FRED `SP500` 일별 종가 2016-10-31 ~ 2026-10-28, 그래프는 주간 종가
+
+| 지표 | 값 |
+| --- | --- |
+| 10년 상승률 | +264.2% (약 3.6배), 연평균 +13.8% |
+| 최고가 | 7,818.93 (2026-10-06) |
+| 최대 낙폭 | -33.9% (2020-02-19 → 2020-03-23, 코로나19) |
+| 가장 나빴던 해 | 2022년 -19.4% |
+| 가장 좋았던 해 | 2019년 +28.9% |
+
+### 연령대별 진료비 (실습)
 - URL: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html
 
 | 연령대 | 남성 1명당 | 여성 1명당 |
@@ -146,5 +164,6 @@ Windows Edge headless로 1200px 폭 스크린샷을 찍어 라벨 겹침과 잘�
 ## 10. GitHub
 - 저장소: https://github.com/jihyeongh21-svg/nano-degree-sql-ai-agent
 - 대시보드: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/
-- 관심 주제 그래프: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html
+- 과제 1 그래프 (S&P 500): https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/sp500.html
+- 실습 그래프 (연령대별 진료비): https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/age-cost.html
 - 실습·과제 SQL: [`sql/`](../sql/)

@@ -108,6 +108,18 @@ def main():
         "female": [{"patients": n, "avg_amt": round(t / n) if n else 0} for n, t in age_cost["2"].values()],
     }
 
+    # Supabase 에는 claim 만 올리므로, 화면에서 이름을 붙일 참조표는 따로 둔다
+    lookups = {
+        "sick_name": {c: sick_name[c] for c in sorted(sick_cnt) if c in sick_name},
+        "yid_type": {y: cl_name[r["cl_cd"]] for y, r in sorted(institution.items()) if r["cl_cd"] in cl_name},
+    }
+    (OUT.parent / "lookups.js").write_text(
+        "// build_data.py가 만든 파일. 직접 고치지 않는다.\nwindow.CLAIM_LOOKUPS = "
+        + json.dumps(lookups, ensure_ascii=False, separators=(",", ":"))
+        + ";\n",
+        encoding="utf-8",
+    )
+
     data = {
         "kpi": kpi,
         "top_sick": top_sick,

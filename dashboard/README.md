@@ -78,13 +78,15 @@ dashboard/
 | --- | --- |
 | [`invest/index.html`](invest/index.html) | 과제 1·2: 주식투자 보조 대시보드 |
 | [`invest/invest_data.js`](invest/invest_data.js) | 지수·VIX·금리·환율 집계 (자동 생성) |
-| [`invest/scripts/build_invest.py`](invest/scripts/build_invest.py) | FRED 7개 시리즈 다운로드 + 집계 |
+| [`invest/scripts/build_invest.py`](invest/scripts/build_invest.py) | FRED 7개 시리즈 다운로드 + 집계, Supabase 업로드용 CSV 생성 |
+| [`invest/supabase/market_daily.csv`](invest/supabase/market_daily.csv) | Supabase `market_daily` 테이블에 올릴 날짜별 지표 (2,576행, 자동 생성) |
 | [`invest/sp500.html`](invest/sp500.html) | 빌드 1단계: S&P 500 주가 변동 그래프 |
 | [`invest/sp500_data.js`](invest/sp500_data.js) | S&P 500 주간 종가·요약 (자동 생성) |
 | [`invest/scripts/build_sp500.py`](invest/scripts/build_sp500.py) | FRED 다운로드 + 집계 |
 | [`claims/index.html`](claims/index.html) | 수업 실습: 건강보험 청구 대시보드 |
 | [`claims/age-cost.html`](claims/age-cost.html) | 수업 실습: 연령대별 진료비 그래프 |
-| [`claims/data.js`](claims/data.js), [`claims/scripts/build_data.py`](claims/scripts/build_data.py) | 수업 실습용 청구 데이터 집계 |
+| [`claims/data.js`](claims/data.js), [`claims/scripts/build_data.py`](claims/scripts/build_data.py) | 수업 실습용 청구 데이터 집계 (Supabase 연결 실패 시 백업) |
+| [`claims/lookups.js`](claims/lookups.js) | 상병 한글명·종별 참조표 (자동 생성) |
 | [`index.html`](index.html) | 대시보드 모음 안내 페이지 |
 | [`PROMPTS.md`](PROMPTS.md) | 재현용 프롬프트 |
 | [`RETROSPECTIVE.md`](RETROSPECTIVE.md) | 과제 3 회고 노트 |
@@ -170,6 +172,32 @@ Windows Edge headless로 1200px 폭과 모바일 폭 스크린샷을 찍어 라�
 
 **인사이트**: 지금은 추세가 살아 있고 공포 신호가 없는 고점 부근입니다. 원/달러가 1년 평균보다 9% 가까이 낮아 원화로 사기에는 부담이 덜한 편입니다. 다만 고점 부근이므로 한 번에 몰아서 사기보다 정해 둔 금액을 나눠 사는 적립식이 맞습니다.
 
+### Supabase 연결 (3일차 실습)
+투자 대시보드도 고정된 집계(`invest_data.js`) 대신 Supabase 테이블에서 데이터를 읽어 브라우저에서 계산합니다. 차트와 화면은 그대로 두고 데이터 소스만 바꿨습니다.
+
+1. **데이터 올리기**: `build_invest.py` 가 만든 [`invest/supabase/market_daily.csv`](invest/supabase/market_daily.csv) 를 Table Editor → Import data from CSV 로 `market_daily` 테이블에 올림
+   - 열: `obs_date`(날짜), `sp500`, `nasdaq`, `dow`, `vix`, `us10y`, `us2y`, `usdkrw` — 날짜별 한 행, 발표가 없는 날은 빈 칸
+   - 기간: S&P 500 첫 날짜 한 달 전(2016-09-30)부터 2,576행
+2. **연결**: [`invest/index.html`](invest/index.html) 의 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 에 Project URL·publishable 키를 넣음 (청구 대시보드와 같은 프로젝트)
+3. **데이터가 안 보이면(RLS)**:
+   ```sql
+   alter table market_daily enable row level security;
+   create policy "anon can read market_daily" on market_daily for select to anon using (true);
+   ```
+4. **확인**: Table Editor 에서 마지막 날 `sp500` 값을 바꾸고 새로고침 → 신호 카드와 차트가 바뀌면 성공
+5. **후퇴 옵션**: 연결이 안 되면 머리말에 이유를 표시하고 `invest_data.js` 로 그림
+
+구현 메모
+- `build_invest.py` 의 계산(1일·1개월·연초 대비, 50·200일선, RSI, 골든·데드크로스, 고점 대비 하락률, 금리차, 환율 1년 평균, 월말 값)을 화면의 `buildData()` 로 옮김
+- 파이썬 3.12 `sum()` 은 보정 덧셈(Neumaier)이라, JS 도 같은 방식으로 더해야 이동평균의 소수 둘째 자리 반올림이 같아짐 (처음에는 3곳이 0.01씩 달랐음)
+- 1,000행씩 동시에 4개씩 읽고, 새로고침마다 최신 값을 읽도록 캐시를 쓰지 않으며 `accessToken` 으로 로그인 세션 확인을 건너뜀
+
+검증 (실제 Supabase 연결 전)
+- Supabase(PostgREST)처럼 응답하는 로컬 가짜 서버에 `market_daily.csv` 를 올리고 페이지 코드를 Node 에서 실행: `cards`·`signals`·`trend`·`crosses`·`drawdown`·`vix`·`spread`·`monthly` 8개 항목이 파이썬 `invest_data.js` 와 완전히 같음
+- 마지막 날 S&P 500 을 7,743.98 → 7,000 으로 바꾸고 다시 읽으면 200일선 7,302.71 → 7,298.99, 고점 대비 −0.96% → −10.47%(조정)로 바뀌고, 되돌리면 원래 값
+- 키 설정 전에는 브라우저에서 안내 문구와 함께 `invest_data.js` 로 정상 표시
+- **실제 연결 (2026-10-29)**: Supabase 프로젝트의 `market_daily` 2,576행을 읽어 계산한 결과가 8개 항목 모두 `invest_data.js` 와 같음. CSV 가져오기에서 `sp500`·`dow` 열이 text 로 잡혔지만 화면에서 숫자로 바꿔 읽어 문제없음
+
 ### 빌드 1단계: S&P 500 주가 변동
 - URL: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/invest/sp500.html
 - 데이터: FRED `SP500` 일별 종가 2016-10-31 ~ 2026-10-28, 그래프는 주간 종가
@@ -198,6 +226,31 @@ Windows Edge headless로 1200px 폭과 모바일 폭 스크린샷을 찍어 라�
 | 계절성 | 호흡기 명세서 11~3월 대부분 월 700~840건, 6~9월 300~380건 |
 
 숫자 검증: 총 명세서 수·진료비·수진자 수, 상급종합병원·의원 건당 진료비가 [SQL 실습 결과](../sql/README.md#6-결과)와 일치
+
+#### Supabase 연결 (3일차 실습)
+3일차 시연 프롬프트대로 명세서를 CSV 집계(`data.js`) 대신 Supabase `claim` 테이블에서 supabase-js(2.45.4)로 읽습니다. 차트는 그대로 두고 데이터 소스만 바꿨습니다.
+
+1. **핸즈온 1**: Table Editor → Import data from CSV 로 `claim.csv` 를 `claim` 테이블로 올리고, Project Settings > API 에서 Project URL·anon key 확인
+2. **연결**: [`claims/index.html`](claims/index.html) 의 `SUPABASE_URL`, `SUPABASE_ANON_KEY` 에 Project URL·publishable 키를 넣음
+3. **데이터가 안 보이면(RLS)**: SQL Editor 에서 읽기 허용
+   ```sql
+   alter table claim enable row level security;
+   create policy "anon can read claim" on claim for select to anon using (true);
+   ```
+4. **확인**: Table Editor 에서 한 행의 값을 바꾸고 새로고침 → 숫자가 바뀌면 성공
+5. **후퇴 옵션**: 연결이 안 되면 머리말에 이유(설정 전 / RLS로 0행 / 오류)를 표시하고 저장해 둔 집계 `data.js` 로 그림
+
+구현 메모
+- Supabase는 한 번에 최대 1,000행을 돌려주므로 행 수를 먼저 세고 1,000행씩, 동시에 4개씩 필요한 열만 읽어 브라우저에서 집계
+- 상병 한글명과 종별 이름은 `claim` 에 없어서 참조표 [`claims/lookups.js`](claims/lookups.js)(`build_data.py` 가 생성)로 붙임
+- 새로고침마다 최신 값을 읽도록 요청에 `cache: "no-store"` 를 쓰고, 로그인이 필요 없으므로 공개 키를 `accessToken` 으로 바로 넘겨 supabase-js 의 로그인 세션 확인을 건너뜀 (세션 확인이 브라우저 잠금을 기다리다 멈추는 문제가 실제로 있었음)
+- anon key는 공개 키라 화면 코드에 넣어도 되지만, service_role key는 절대 넣지 않음
+
+검증 (실제 Supabase 연결 전)
+- Supabase(PostgREST)처럼 응답하는 로컬 가짜 서버에 claim 38,375행을 올리고, 페이지의 연결·집계 코드를 그대로 Node에서 실행: KPI·종별 값이 `data.js` 와 같음
+- 한 행의 진료비를 20,700원 → 1,000,020,700원으로 바꾸고 다시 읽으면 총 진료비 32.9억 → 42.9억, 의원 건당 36,019원 → 68,992원으로 바뀌고, 되돌리면 원래 값으로 돌아옴
+- 설정 전·RLS로 0행일 때 `data.js` 로 대신 그리는 것은 브라우저에서 확인
+- **실제 연결 (2026-10-29)**: Supabase 프로젝트의 `claim` 38,375행을 브라우저와 Node 에서 읽어 KPI·종별 값이 `data.js` 와 같음을 확인. 처음에는 테이블이 없거나(PGRST205) RLS 정책이 없어 0행이었고, CSV 가져오기와 `select` 정책 추가로 해결
 
 ### 연령대별 진료비 ([`claims/age-cost.html`](claims/age-cost.html))
 - URL: https://jihyeongh21-svg.github.io/nano-degree-sql-ai-agent/dashboard/claims/age-cost.html

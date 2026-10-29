@@ -1,4 +1,5 @@
 """FRED에서 지수·변동성·금리·환율을 받아 투자 보조 대시보드용 invest_data.js를 만든다.
+Supabase Table Editor 에 올릴 market_daily.csv(날짜별 한 행)도 함께 만든다.
 
 실행: python3 dashboard/invest/scripts/build_invest.py
 """
@@ -21,6 +22,7 @@ SERIES = {
 HERE = Path(__file__).resolve().parent
 CACHE = HERE / ".cache"
 OUT = HERE.parent / "invest_data.js"
+OUT_CSV = HERE.parent / "supabase" / "market_daily.csv"
 
 
 def load(series_id):
@@ -142,6 +144,24 @@ def main():
     print(json.dumps({"cards": data["cards"], "signals": data["signals"], "crosses": data["crosses"]},
                      ensure_ascii=False, indent=1))
     print("trend", len(trend), "drawdown", len(dd_weekly), "monthly", len(monthly), "bytes", OUT.stat().st_size)
+    write_market_csv(s)
+
+
+def write_market_csv(s):
+    """S&P 500 첫 날짜 한 달 전부터, 날짜별로 7개 지표를 한 행에 담는다. 값이 없는 칸은 비워 둔다."""
+    since = s["sp500"][0][0] - timedelta(days=31)
+    by_date = {}
+    for key, series in s.items():
+        for d, v in series:
+            if d >= since:
+                by_date.setdefault(d, {})[key] = v
+    OUT_CSV.parent.mkdir(exist_ok=True)
+    with open(OUT_CSV, "w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["obs_date", *SERIES])
+        for d in sorted(by_date):
+            w.writerow([d.isoformat(), *(by_date[d].get(k, "") for k in SERIES)])
+    print("market_daily.csv rows", len(by_date))
 
 
 if __name__ == "__main__":

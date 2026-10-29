@@ -124,6 +124,18 @@ index.html 과 sp500.html 을 headless 브라우저로 1200px 폭과 모바일 �
 변경을 커밋해서 main 에 push 하고, GitHub Pages(main 브랜치 / root)에서 index.html 공개 URL 이 열리는지 확인해줘.
 ```
 
+## 8단계. Supabase 연결
+
+```
+이 대시보드 HTML이 invest_data.js 대신 Supabase 테이블에서 데이터를 읽게 바꿔줘.
+Project URL은 https://xxxx.supabase.co 이고, anon key는 (여기에 anon key)야.
+테이블 이름은 market_daily 이고, supabase-js 라이브러리를 사용해줘.
+build_invest.py 가 Table Editor 에 올릴 market_daily.csv(obs_date + 지표 7개, 날짜별 한 행)도 만들게 하고,
+화면에서는 build_invest.py 와 같은 계산을 해서 결과가 invest_data.js 와 똑같은지 확인해줘.
+```
+
+> 데이터가 안 보이면 "이 테이블을 anon key로 읽을 수 있게 RLS에서 읽기(SELECT) 허용 정책을 추가해줘"로 정책을 추가합니다.
+
 ## (선택) 파일 하나로 합치기
 
 ```
@@ -197,6 +209,17 @@ Edge headless 로 index.html 과 age-cost.html 스크린샷을 찍어서 라벨 
 KPI 숫자가 SQL 결과(38,375건, 3,293,580,300원, 2,970명)와 같은지,
 종별 건당 진료비가 SQL 실습 2 결과(상급종합병원 499,558원, 의원 36,019원)와 같은지도 확인해줘.
 ```
+
+## B4-1. Supabase 연결
+
+```
+이 대시보드 HTML이 csv 대신 Supabase 테이블에서 데이터를 읽게 바꿔줘.
+Project URL은 https://xxxx.supabase.co 이고, anon key는 (여기에 anon key)야.
+테이블 이름은 claim 이고, supabase-js 라이브러리를 사용해줘.
+```
+
+> claim 에는 상병명·종별 이름이 없어서 build_data.py 가 참조표 lookups.js 를 함께 만듭니다. 화면은 1,000행씩 나눠 읽어 브라우저에서 집계하고, 연결이 안 되면 data.js 로 대신 그립니다.
+> 데이터가 안 보이면 "이 테이블을 anon key로 읽을 수 있게 RLS에서 읽기(SELECT) 허용 정책을 추가해줘"로 정책을 추가합니다.
 
 ## B5. 배포
 

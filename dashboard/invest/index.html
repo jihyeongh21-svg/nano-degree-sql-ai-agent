@@ -69,7 +69,9 @@
   main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 48px; }
   h1 { margin: 0 0 4px; font-size: 1.5rem; }
   h2 { margin: 0 0 4px; font-size: 1rem; }
-  .lead { margin: 0 0 20px; color: var(--text-secondary); }
+  .lead { margin: 0 0 4px; color: var(--text-secondary); }
+  .source { margin: 0 0 20px; color: var(--text-muted); font-size: 0.8rem; }
+  .source[data-state="fallback"] { color: var(--warn); }
   .desc { margin: 0 0 10px; color: var(--text-muted); font-size: 0.85rem; }
   .card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
   .grid { display: grid; gap: 14px; margin-bottom: 14px; }
@@ -126,6 +128,7 @@
 <main>
   <h1>주식투자 보조 대시보드</h1>
   <p class="lead" id="lead"></p>
+  <p class="source" id="source">데이터를 불러오는 중…</p>
 
   <!-- 1. 오늘의 시장 신호 -->
   <section class="grid g3" id="signals" aria-label="시장 신호"></section>
@@ -187,9 +190,126 @@
 </main>
 
 <script src="invest_data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-  const D = window.INVEST_DATA, C = D.cards, G = D.signals;
+  // Supabase 연결 정보. anon key 는 공개 키라 화면 코드에 넣어도 되고, 데이터 보호는 RLS 정책으로 한다.
+  // service_role key 는 절대 넣지 않는다.
+  const SUPABASE_URL = "https://nzexpfxzipkjxhricned.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_Hp0LvWW1s07ZJG8tAClhSQ_ueJpq5Ev";
+  const TABLE = "market_daily";  // supabase/market_daily.csv 를 올린 테이블
+  const KEYS = ["sp500", "nasdaq", "dow", "vix", "us10y", "us2y", "usdkrw"];
+  const PAGE = 1000;  // Supabase 기본 최대 응답 행 수
+
+  async function loadMarket() {
+    if (SUPABASE_URL.includes("xxxx") || SUPABASE_ANON_KEY.includes("anon key")) throw new Error("Supabase URL·anon key 가 아직 설정되지 않았습니다");
+    // 로그인 없이 읽기만 하므로 공개 키를 accessToken 으로 바로 넘겨 로그인 세션 확인을 건너뛴다.
+    // (세션 확인은 브라우저 잠금을 기다리다 멈출 수 있다.) 캐시도 쓰지 않아야 Table Editor 에서 바꾼 값이 새로고침에 바로 보인다.
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      accessToken: async () => SUPABASE_ANON_KEY,
+      global: { fetch: (url, opts) => fetch(url, { ...opts, cache: "no-store" }) }
+    });
+    const { count, error } = await db.from(TABLE).select("*", { count: "exact", head: true });
+    if (error) throw new Error(error.message);
+    // RLS 에 읽기 정책이 없으면 에러 없이 0행이 온다
+    if (!count) throw new Error(TABLE + " 테이블에서 읽은 행이 없습니다. RLS 읽기(SELECT) 허용 정책을 확인하세요");
+    const rows = [];
+    for (let start = 0; start < count; start += PAGE * 4) {
+      const batch = await Promise.all([0, 1, 2, 3].map(k => start + k * PAGE).filter(from => from < count).map(from =>
+        db.from(TABLE).select("obs_date," + KEYS.join(",")).order("obs_date").range(from, from + PAGE - 1)));
+      const failed = batch.find(p => p.error);
+      if (failed) throw new Error(failed.error.message);
+      batch.forEach(p => rows.push(...p.data));
+    }
+    return rows;
+  }
+
+  // build_invest.py 와 같은 계산을 브라우저에서 한다. 날짜는 "YYYY-MM-DD" 문자열로 비교한다.
+  function buildData(rows) {
+    const r2 = x => Number(x.toFixed(2)), r1 = x => Number(x.toFixed(1));
+    const addDays = (d, n) => new Date(Date.parse(d + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+    const isoWeek = d => {
+      const t = new Date(Date.parse(d + "T00:00:00Z"));
+      t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+      const y = t.getUTCFullYear();
+      return y + "-" + Math.ceil(((t - Date.UTC(y, 0, 1)) / 864e5 + 1) / 7);
+    };
+    const s = {};
+    for (const k of KEYS) {
+      s[k] = rows.filter(r => r[k] !== null && r[k] !== "").map(r => [String(r.obs_date).slice(0, 10), Number(r[k])]);
+    }
+    const onOrBefore = (series, d) => { for (let i = series.length - 1; i >= 0; i--) if (series[i][0] <= d) return series[i][1]; return series[0][1]; };
+    const changes = (series, rate) => {
+      const [lastD, lastV] = series[series.length - 1];
+      const diff = base => rate ? r2(lastV - base) : r2((lastV / base - 1) * 100);
+      return { date: lastD, value: lastV, d1: diff(series[series.length - 2][1]),
+        m1: diff(onOrBefore(series, addDays(lastD, -30))), ytd: diff(onOrBefore(series, (+lastD.slice(0, 4) - 1) + "-12-31")) };
+    };
+    // 파이썬 3.12 sum() 과 같은 보정 덧셈(Neumaier). 일반 덧셈이면 소수 둘째 자리 반올림이 가끔 달라진다
+    const fsum = a => { let s = 0, c = 0; for (const x of a) { const t = s + x; c += Math.abs(s) >= Math.abs(x) ? (s - t) + x : (x - t) + s; s = t; } return s + c; };
+    const sma = (v, n) => v.map((_, i) => i >= n - 1 ? r2(fsum(v.slice(i - n + 1, i + 1)) / n) : null);
+    const rsi = (v, n = 14) => {
+      const g = [], l = [];
+      for (let i = 1; i < v.length; i++) { g.push(Math.max(v[i] - v[i - 1], 0)); l.push(Math.max(v[i - 1] - v[i], 0)); }
+      let ag = fsum(g.slice(0, n)) / n, al = fsum(l.slice(0, n)) / n;
+      for (let i = n; i < g.length; i++) { ag = (ag * (n - 1) + g[i]) / n; al = (al * (n - 1) + l[i]) / n; }
+      return al ? r1(100 - 100 / (1 + ag / al)) : 100;
+    };
+
+    const sp = s.sp500, closes = sp.map(x => x[1]);
+    const ma50 = sma(closes, 50), ma200 = sma(closes, 200);
+    const crosses = [];
+    for (let i = 200; i < sp.length; i++) {
+      const before = ma50[i - 1] - ma200[i - 1], now = ma50[i] - ma200[i];
+      if (before <= 0 && now > 0) crosses.push([sp[i][0], "golden"]);
+      else if (before >= 0 && now < 0) crosses.push([sp[i][0], "dead"]);
+    }
+    let peak = 0;
+    const weekly = new Map();
+    for (const [d, v] of sp) { peak = Math.max(peak, v); weekly.set(isoWeek(d), [d, r2((v / peak - 1) * 100)]); }
+    const dd = [...weekly.values()];
+    const start = addDays(sp[sp.length - 1][0], -730);
+    const trend = sp.map(([d, v], i) => [d, v, ma50[i], ma200[i]]).filter(r => r[0] >= start);
+    const since = series => series.filter(r => r[0] >= start);
+    const spread = since(s.us10y).map(([d, v]) => [d, r2(v - onOrBefore(s.us2y, d))]);
+    const monthEnd = new Map();
+    for (const [d, v] of sp) monthEnd.set(d.slice(0, 7), [d, v]);
+    const monthly = [...monthEnd].map(([m, [d, v]]) => [m, v, onOrBefore(s.usdkrw, d)]);
+    const fxFrom = addDays(s.usdkrw[s.usdkrw.length - 1][0], -365);
+    const fx1y = s.usdkrw.filter(r => r[0] >= fxFrom).map(r => r[1]);
+    const cards = {};
+    for (const k of KEYS) cards[k] = changes(s[k], k === "us10y" || k === "us2y");
+    return {
+      source: "Supabase " + TABLE + " (원자료: FRED SP500, NASDAQCOM, DJIA, VIXCLS, DGS10, DGS2, DEXKOUS)",
+      cards,
+      signals: {
+        sp_close: closes[closes.length - 1], ma50: ma50[ma50.length - 1], ma200: ma200[ma200.length - 1], rsi14: rsi(closes),
+        drawdown: dd[dd.length - 1][1], high: Math.max(...closes), vix: s.vix[s.vix.length - 1][1],
+        spread: spread[spread.length - 1][1], usdkrw: s.usdkrw[s.usdkrw.length - 1][1],
+        usdkrw_1y_avg: r2(fsum(fx1y) / fx1y.length), last_cross: crosses.length ? crosses[crosses.length - 1] : null
+      },
+      trend, crosses: crosses.filter(c => c[0] >= start), drawdown: dd, vix: since(s.vix), spread, monthly
+    };
+  }
+
+  async function main() {
+    const source = document.getElementById("source");
+    let D;
+    try {
+      const rows = await loadMarket();
+      D = buildData(rows);
+      source.textContent = "Supabase " + TABLE + " 테이블에서 " + rows.length.toLocaleString("ko-KR") + "행을 읽었습니다 · " + new Date().toLocaleString("ko-KR");
+    } catch (e) {
+      // 연결이 안 되면 저장해 둔 집계(invest_data.js)로 그린다
+      D = window.INVEST_DATA;
+      source.textContent = "Supabase 연결 실패: " + e.message + " → 저장해 둔 집계(invest_data.js)로 표시합니다";
+      source.dataset.state = "fallback";
+    }
+    start(D);
+  }
+
+  function start(D) {
+  const C = D.cards, G = D.signals;
   const num = (n, d = 2) => n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
   const won = n => Math.round(n).toLocaleString("ko-KR") + "원";
   const man = n => (n / 10000).toLocaleString("ko-KR", { maximumFractionDigits: 0 }) + "만 원";
@@ -408,6 +528,9 @@
   }
   renderAll();
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+  }
+
+  main();
 </script>
 </body>
 </html>

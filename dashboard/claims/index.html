@@ -54,6 +54,8 @@
   main { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
   header h1 { margin: 0 0 4px; font-size: 1.6rem; }
   header p { margin: 0; color: var(--text-secondary); }
+  header p.source { margin-top: 4px; font-size: 0.8rem; color: var(--text-muted); }
+  header p.source[data-state="fallback"] { color: var(--series-2); }
   .persona {
     margin-top: 12px;
     padding: 10px 14px;
@@ -101,7 +103,8 @@
 <main>
   <header>
     <h1>건강보험 청구 진료비 점검</h1>
-    <p>kr_claims 명세서 · 2024-01 ~ 2025-12</p>
+    <p id="period">kr_claims 명세서</p>
+    <p class="source" id="source">데이터를 불러오는 중…</p>
     <div class="persona">이 페이지는 <b>병원 경영기획팀장</b>이 <b>월초 경영회의 전날</b>에 <b>전월 진료비와 환자 구성을 점검</b>하기 위해 봅니다.</div>
   </header>
 
@@ -114,13 +117,13 @@
   <section class="grid2">
     <div class="card">
       <h2>주상병별 명세서 수 상위 10</h2>
-      <p class="desc">급성 기관지염과 고혈압이 두 축입니다.</p>
+      <p class="desc" id="d-sick"></p>
       <div class="chart"><canvas id="c-sick" aria-label="주상병별 명세서 수 막대 그래프" role="img"></canvas></div>
       <details><summary>표로 보기</summary><table id="t-sick"></table></details>
     </div>
     <div class="card">
       <h2>종별 건당 평균 진료비</h2>
-      <p class="desc">상급종합병원 한 건이 의원 약 14건과 같습니다.</p>
+      <p class="desc" id="d-type"></p>
       <div class="chart"><canvas id="c-type" aria-label="종별 건당 평균 진료비 막대 그래프" role="img"></canvas></div>
       <details><summary>표로 보기</summary><table id="t-type"></table></details>
     </div>
@@ -133,42 +136,122 @@
     <details><summary>표로 보기</summary><table id="t-month"></table></details>
   </section>
 
-  <section class="insight">
-    <b>인사이트:</b> 명세서의 79%는 의원에서 나오지만, 건당 진료비는 상급종합병원이 의원의 약 14배입니다. 호흡기 질환 명세서는 11~3월 대부분 월 700~840건으로 6~9월(300~380건)의 2배 이상이므로 겨울 외래 인력과 예산을 먼저 점검합니다.
-    <ul>
-      <li>건당 진료비: 상급종합병원 499,558원, 의원 36,019원</li>
-      <li>본인부담률은 반대로 의원 27.2%, 상급종합병원 19.8%</li>
-      <li>호흡기 명세서: 2025년 12월 839건, 2025년 9월 315건</li>
-    </ul>
-  </section>
+  <section class="insight" id="insight"></section>
 
   <footer>
     데이터: 오즈코딩스쿨 SQL 특강 실습용 kr_claims (가상 명세서 + 심평원 공개 코드표). 실제 환자 기록이 아닙니다.
-    · 집계: <a href="scripts/build_data.py">scripts/build_data.py</a>
+    · 명세서: Supabase <code>claim</code> 테이블 · 상병명·종별 참조표: <a href="lookups.js">lookups.js</a>
+    · 백업 집계: <a href="scripts/build_data.py">scripts/build_data.py</a>
   </footer>
 </main>
 
+<script src="lookups.js"></script>
 <script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-  const D = window.DASHBOARD_DATA;
+  // Supabase 연결 정보. anon key 는 공개 키라 화면 코드에 넣어도 되고, 데이터 보호는 RLS 정책으로 한다.
+  // service_role key 는 절대 넣지 않는다.
+  const SUPABASE_URL = "https://nzexpfxzipkjxhricned.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_Hp0LvWW1s07ZJG8tAClhSQ_ueJpq5Ev";
+  const TABLE = "claim";
+  const COLUMNS = "jid,yid,main_sick,recu_fr_dd,rvd_rpe_tamt_amt,rvd_slf_brdn_amt";
+  const PAGE = 1000;  // Supabase 기본 최대 응답 행 수
+
+  const L = window.CLAIM_LOOKUPS;
   const fmt = n => n.toLocaleString("ko-KR");
   const eok = n => (n / 1e8).toFixed(1) + "억 원";
+  let D;
 
-  document.getElementById("kpi-claims").textContent = fmt(D.kpi.claims) + "건";
-  document.getElementById("kpi-amt").textContent = eok(D.kpi.total_amt);
-  document.getElementById("kpi-amt-sub").textContent = "건당 평균 " + fmt(Math.round(D.kpi.total_amt / D.kpi.claims)) + "원";
-  document.getElementById("kpi-pt").textContent = fmt(D.kpi.patients) + "명";
-  document.getElementById("kpi-pt-sub").textContent = "1명당 명세서 " + (D.kpi.claims / D.kpi.patients).toFixed(1) + "건";
+  // claim 전체를 1,000행씩 나눠 읽는다. 새로고침할 때마다 최신 값을 읽는다.
+  async function loadClaims() {
+    if (SUPABASE_URL.includes("xxxx") || SUPABASE_ANON_KEY.includes("anon key")) throw new Error("Supabase URL·anon key 가 아직 설정되지 않았습니다");
+    // 로그인 없이 읽기만 하므로 공개 키를 accessToken 으로 바로 넘겨 로그인 세션 확인을 건너뛴다.
+    // (세션 확인은 브라우저 잠금을 기다리다 멈출 수 있다.) 캐시도 쓰지 않아야 Table Editor 에서 바꾼 값이 새로고침에 바로 보인다.
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      accessToken: async () => SUPABASE_ANON_KEY,
+      global: { fetch: (url, opts) => fetch(url, { ...opts, cache: "no-store" }) }
+    });
+    const { count, error } = await db.from(TABLE).select("*", { count: "exact", head: true });
+    if (error) throw new Error(error.message);
+    // RLS 에 읽기 정책이 없으면 에러 없이 0행이 온다
+    if (!count) throw new Error(TABLE + " 테이블에서 읽은 행이 없습니다. RLS 읽기(SELECT) 허용 정책을 확인하세요");
+    // 동시에 4개씩만 요청한다
+    const rows = [];
+    for (let start = 0; start < count; start += PAGE * 4) {
+      const batch = await Promise.all([0, 1, 2, 3].map(k => start + k * PAGE).filter(from => from < count).map(from =>
+        db.from(TABLE).select(COLUMNS).order("mid").range(from, from + PAGE - 1)));
+      const failed = batch.find(p => p.error);
+      if (failed) throw new Error(failed.error.message);
+      batch.forEach(p => rows.push(...p.data));
+    }
+    return rows;
+  }
+
+  // build_data.py 와 같은 집계를 브라우저에서 한다
+  function aggregate(rows) {
+    const num = v => Number(v) || 0;
+    const sick = new Map(), type = new Map(), month = new Map(), pts = new Set();
+    let total = 0;
+    for (const r of rows) {
+      const amt = num(r.rvd_rpe_tamt_amt), code = String(r.main_sick), ym = String(r.recu_fr_dd).slice(0, 7);
+      total += amt;
+      pts.add(String(r.jid));
+      sick.set(code, (sick.get(code) || 0) + 1);
+      const t = L.yid_type[String(r.yid)] || "기타";
+      const c = type.get(t) || [0, 0, 0];
+      c[0] += 1; c[1] += amt; c[2] += num(r.rvd_slf_brdn_amt);
+      type.set(t, c);
+      const m = month.get(ym) || [0, 0];
+      m[0] += 1; if (code.startsWith("J")) m[1] += 1;
+      month.set(ym, m);
+    }
+    return {
+      kpi: { claims: rows.length, total_amt: total, patients: pts.size },
+      top_sick: [...sick].sort((a, b) => b[1] - a[1]).slice(0, 10)
+        .map(([code, n]) => ({ code, name: L.sick_name[code] || code, claims: n })),
+      by_type: [...type].map(([name, [n, t, s]]) => ({ name, claims: n, avg_amt: Math.round(t / n), self_pct: Math.round(s * 1000 / t) / 10 }))
+        .sort((a, b) => b.avg_amt - a.avg_amt),
+      monthly: [...month].sort().map(([month, [all, resp]]) => ({ month, all, resp }))
+    };
+  }
+
+  function fill() {
+    const ms = D.monthly;
+    document.getElementById("period").textContent = "kr_claims 명세서 · " + ms[0].month + " ~ " + ms[ms.length - 1].month;
+    document.getElementById("kpi-claims").textContent = fmt(D.kpi.claims) + "건";
+    document.getElementById("kpi-amt").textContent = eok(D.kpi.total_amt);
+    document.getElementById("kpi-amt-sub").textContent = "건당 평균 " + fmt(Math.round(D.kpi.total_amt / D.kpi.claims)) + "원";
+    document.getElementById("kpi-pt").textContent = fmt(D.kpi.patients) + "명";
+    document.getElementById("kpi-pt-sub").textContent = "1명당 명세서 " + (D.kpi.claims / D.kpi.patients).toFixed(1) + "건";
+
+    table("t-sick", ["상병", "명세서"], D.top_sick.map(s => [s.code + " " + s.name, fmt(s.claims)]));
+    table("t-type", ["종별", "명세서", "건당 진료비(원)", "본인부담률(%)"], D.by_type.map(t => [t.name, fmt(t.claims), fmt(t.avg_amt), t.self_pct]));
+    table("t-month", ["월", "전체", "호흡기"], D.monthly.map(m => [m.month, fmt(m.all), fmt(m.resp)]));
+
+    // 설명과 인사이트도 읽어 온 값으로 다시 계산한다
+    const short = s => s.name.replace(/^(상세불명의|기타 및 상세불명의) /, "");
+    const [s1, s2] = D.top_sick;
+    document.getElementById("d-sick").textContent = short(s1) + "(" + fmt(s1.claims) + "건)과 " + short(s2) + "(" + fmt(s2.claims) + "건)이 두 축입니다.";
+    const top = D.by_type[0], low = D.by_type[D.by_type.length - 1];
+    const ratio = Math.round(top.avg_amt / low.avg_amt);
+    document.getElementById("d-type").textContent = top.name + " 한 건이 " + low.name + " 약 " + ratio + "건과 같습니다.";
+    const big = D.by_type.reduce((b, t) => t.claims > b.claims ? t : b);
+    const share = Math.round(big.claims * 100 / D.kpi.claims);
+    const peak = ms.reduce((b, m) => m.resp > b.resp ? m : b), dip = ms.reduce((b, m) => m.resp < b.resp ? m : b);
+    document.getElementById("insight").innerHTML =
+      "<b>인사이트:</b> 명세서의 " + share + "%는 " + big.name + "에서 나오지만, 건당 진료비는 " + top.name + "이 " + low.name +
+      "의 약 " + ratio + "배입니다. 호흡기 질환 명세서는 겨울에 많고 여름에 적으므로 겨울 외래 인력과 예산을 먼저 점검합니다." +
+      "<ul><li>건당 진료비: " + top.name + " " + fmt(top.avg_amt) + "원, " + low.name + " " + fmt(low.avg_amt) + "원</li>" +
+      "<li>본인부담률: " + low.name + " " + low.self_pct + "%, " + top.name + " " + top.self_pct + "%</li>" +
+      "<li>호흡기 명세서: 가장 많은 달 " + peak.month + " " + fmt(peak.resp) + "건, 가장 적은 달 " + dip.month + " " + fmt(dip.resp) + "건</li></ul>";
+  }
 
   function table(id, head, rows) {
     document.getElementById(id).innerHTML =
       "<tr>" + head.map(h => "<th>" + h + "</th>").join("") + "</tr>" +
       rows.map(r => "<tr>" + r.map(c => "<td>" + c + "</td>").join("") + "</tr>").join("");
   }
-  table("t-sick", ["상병", "명세서"], D.top_sick.map(s => [s.code + " " + s.name, fmt(s.claims)]));
-  table("t-type", ["종별", "명세서", "건당 진료비(원)", "본인부담률(%)"], D.by_type.map(t => [t.name, fmt(t.claims), fmt(t.avg_amt), t.self_pct]));
-  table("t-month", ["월", "전체", "호흡기"], D.monthly.map(m => [m.month, fmt(m.all), fmt(m.resp)]));
 
   const charts = [];
   function css(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -233,7 +316,23 @@
     }));
   }
 
-  render();
+  async function main() {
+    const source = document.getElementById("source");
+    try {
+      const rows = await loadClaims();
+      D = aggregate(rows);
+      source.textContent = "Supabase " + TABLE + " 테이블에서 " + fmt(rows.length) + "행을 읽었습니다 · " + new Date().toLocaleString("ko-KR");
+      source.dataset.state = "live";
+    } catch (e) {
+      // 연결이 안 되면 저장해 둔 집계(data.js)로 그린다
+      D = window.DASHBOARD_DATA;
+      source.textContent = "Supabase 연결 실패: " + e.message + " → 저장해 둔 집계(data.js)로 표시합니다";
+      source.dataset.state = "fallback";
+    }
+    fill();
+    render();
+  }
+  main();
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 </script>
 </body>
